@@ -54,7 +54,7 @@ class DLCManager:
             logger.warning(f"Unknown file transfer mode: {data[1]}")
 
     async def upload_dlc(
-        self, dlc_path: Path, slot: int = 2, timeout: float = 60.0
+        self, dlc_path: Path, slot: int = 2, timeout: float = 60.0, enable_nordic_ack: bool = True
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -63,6 +63,7 @@ class DLCManager:
             dlc_path: Path to DLC file
             slot: Slot number to upload to (default: 2)
             timeout: Upload timeout in seconds
+            enable_nordic_ack: Enable Nordic packet ACK for monitoring (default: True)
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist
@@ -77,6 +78,10 @@ class DLCManager:
         filename = dlc_path.name
 
         logger.info(f"Uploading DLC: {filename} ({file_size} bytes) to slot {slot}")
+
+        # Enable Nordic Packet ACK for monitoring
+        if enable_nordic_ack:
+            await self.furby.enable_nordic_packet_ack(True)
 
         # Reset transfer state
         self._transfer_ready.clear()
@@ -96,8 +101,10 @@ class DLCManager:
                 await asyncio.wait_for(
                     self._transfer_ready.wait(), timeout=10.0
                 )
-            except asyncio.TimeoutError:
-                raise RuntimeError("Furby did not respond to DLC upload announcement")
+            except TimeoutError:
+                raise RuntimeError(
+                    "Furby did not respond to DLC upload announcement"
+                ) from None
 
             # Upload file in chunks
             logger.info("Furby ready, uploading data...")
@@ -125,8 +132,8 @@ class DLCManager:
                 await asyncio.wait_for(
                     self._transfer_complete.wait(), timeout=timeout
                 )
-            except asyncio.TimeoutError:
-                raise RuntimeError("Timeout waiting for upload confirmation")
+            except TimeoutError:
+                raise RuntimeError("Timeout waiting for upload confirmation") from None
 
             # Check for errors
             if self._transfer_error:

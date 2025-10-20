@@ -3,11 +3,12 @@ Basic tests for PyFluff protocol module.
 """
 
 import pytest
+
 from pyfluff.protocol import (
-    FurbyProtocol,
-    MoodMeterType,
-    GeneralPlusCommand,
     FurbyMessage,
+    FurbyProtocol,
+    GeneralPlusCommand,
+    MoodMeterType,
 )
 
 
@@ -100,16 +101,26 @@ def test_build_dlc_announce_command() -> None:
     # Check command ID
     assert cmd[0] == GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value
 
+    # Check 0x00 byte after command (matches bluefluff)
+    assert cmd[1] == 0x00
+
     # Check size bytes (big-endian)
-    assert cmd[1] == 0x00  # (12345 >> 16) & 0xFF
-    assert cmd[2] == 0x30  # (12345 >> 8) & 0xFF
-    assert cmd[3] == 0x39  # 12345 & 0xFF
+    assert cmd[2] == 0x00  # (12345 >> 16) & 0xFF
+    assert cmd[3] == 0x30  # (12345 >> 8) & 0xFF
+    assert cmd[4] == 0x39  # 12345 & 0xFF
 
     # Check slot
     assert cmd[5] == 2
 
     # Check filename (padded to 12 bytes)
     assert cmd[6:18] == b"TEST.DLC\x00\x00\x00\x00"
+
+    # Check trailing bytes
+    assert cmd[18] == 0x00
+    assert cmd[19] == 0x00
+
+    # Verify total length
+    assert len(cmd) == 20
 
 
 def test_build_nordic_packet_ack() -> None:

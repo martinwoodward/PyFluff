@@ -7,21 +7,20 @@ controlling Furby Connect toys via Bluetooth Low Energy.
 
 import asyncio
 import logging
-from typing import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable
 
 from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
 
+from pyfluff.models import FurbyInfo, SensorData
 from pyfluff.protocol import (
     FURBY_NAME,
     IDLE_INTERVAL,
     FurbyCharacteristic,
     FurbyProtocol,
-    FurbyService,
     GeneralPlusResponse,
     MoodMeterType,
 )
-from pyfluff.models import FurbyInfo, SensorData
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +228,21 @@ class FurbyConnect:
         )
         logger.debug(f"Nordic write: {data.hex()}")
 
+    async def enable_nordic_packet_ack(self, enabled: bool = True) -> None:
+        """
+        Enable or disable Nordic packet acknowledgment.
+
+        When enabled, Furby will send GotPacketAck (0x09) responses while
+        writing to the FileWrite characteristic. This is useful for DLC uploads
+        to monitor transfer progress.
+
+        Args:
+            enabled: True to enable, False to disable
+        """
+        cmd = FurbyProtocol.build_nordic_packet_ack(enabled)
+        await self._write_nordic(cmd)
+        logger.info(f"Nordic packet ACK {'enabled' if enabled else 'disabled'}")
+
     async def _write_file(self, data: bytes) -> None:
         """Write data to File characteristic."""
         if not self.client or not self.connected:
@@ -300,7 +314,9 @@ class FurbyConnect:
         await self.trigger_action(input=0x21, index=0, subindex=0, specific=name_id)
         logger.info(f"Set name to ID {name_id}")
 
-    async def set_mood(self, mood_type: MoodMeterType, value: int, set_absolute: bool = True) -> None:
+    async def set_mood(
+        self, mood_type: MoodMeterType, value: int, set_absolute: bool = True
+    ) -> None:
         """
         Set Furby mood meter.
 

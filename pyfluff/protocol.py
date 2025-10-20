@@ -220,9 +220,9 @@ class FurbyProtocol:
         # Filename is 12 bytes, padded with nulls
         filename_bytes = filename.encode("ascii")[:12].ljust(12, b"\x00")
         return bytes(
-            [GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value]
+            [GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value, 0x00]
             + list(size_bytes)
-            + [0x00, slot]
+            + [slot]
             + list(filename_bytes)
             + [0x00, 0x00]
         )
