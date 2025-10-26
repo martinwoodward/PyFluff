@@ -3,8 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>PyFluff - Furby Connect Control</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+        (function () {
+            try {
+                const storageKey = 'pyfluff-theme';
+                const storedTheme = localStorage.getItem(storageKey);
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            } catch (error) {
+                console.warn('Theme init failed', error);
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -25,6 +40,10 @@
                 <input type="text" id="mac-address" placeholder="MAC Address (optional)" class="mac-input" title="Enter MAC address to connect directly (useful for F2F mode)">
                 <button id="btn-connect" class="btn btn-primary btn-sm">Connect</button>
                 <button id="btn-disconnect" class="btn btn-secondary btn-sm">Disconnect</button>
+                <button id="theme-toggle" class="btn btn-sm theme-toggle" type="button" aria-pressed="false" title="Switch to dark mode">
+                    <span class="theme-icon" aria-hidden="true">🌙</span>
+                    <span class="theme-text">Dark</span>
+                </button>
             </div>
         </header>
 
