@@ -10,13 +10,12 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.table import Table
-from rich.live import Live
 from rich.panel import Panel
+from rich.table import Table
 
+from pyfluff.dlc import DLCManager
 from pyfluff.furby import FurbyConnect
 from pyfluff.furby_cache import FurbyCache
-from pyfluff.dlc import DLCManager
 
 app = typer.Typer(help="PyFluff - Control Furby Connect from the command line")
 console = Console()

@@ -117,7 +117,10 @@ Now you can ask Copilot to control your Furby:
 - "Make my Furby giggle"
 - "Set the mood to excited"
 
-See the [MCP documentation](docs/MCP.md) for detailed setup and usage instructions.
+**Documentation:**
+- 📖 [Quick Start Guide](QUICKSTART-MCP.md) - Get started in 5 minutes
+- 📚 [Full MCP Documentation](docs/MCP.md) - Detailed setup and usage
+- 💡 [Usage Examples](examples/MCP_EXAMPLES.md) - Copilot prompt examples
 
 ### Starting the Web Server
 

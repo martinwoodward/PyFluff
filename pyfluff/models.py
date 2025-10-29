@@ -3,7 +3,8 @@ Pydantic models for data validation and API schemas.
 """
 
 from typing import Any
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AntennaColor(BaseModel):
@@ -102,7 +103,7 @@ class KnownFurby(BaseModel):
     device_name: str | None = Field(None, description="BLE device name")
     last_seen: float = Field(description="Unix timestamp of last connection")
     firmware_revision: str | None = Field(None, description="Firmware version if known")
-    
+
     model_config = ConfigDict(extra="allow")
 
 
@@ -110,5 +111,5 @@ class KnownFurbiesConfig(BaseModel):
     """Configuration file for known Furbies"""
 
     furbies: dict[str, KnownFurby] = Field(default_factory=dict, description="Map of MAC address to KnownFurby")
-    
+
     model_config = ConfigDict(extra="allow")

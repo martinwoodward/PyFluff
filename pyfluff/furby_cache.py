@@ -11,9 +11,8 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional
 
-from pyfluff.models import KnownFurby, KnownFurbiesConfig
+from pyfluff.models import KnownFurbiesConfig, KnownFurby
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class FurbyCache:
             return KnownFurbiesConfig(furbies={})
 
         try:
-            with open(self.cache_file, "r") as f:
+            with open(self.cache_file) as f:
                 data = json.load(f)
                 config = KnownFurbiesConfig(**data)
                 logger.info(f"Loaded {len(config.furbies)} known Furbies from cache")
@@ -69,10 +68,10 @@ class FurbyCache:
     def add_or_update(
         self,
         address: str,
-        device_name: Optional[str] = None,
-        name: Optional[str] = None,
-        name_id: Optional[int] = None,
-        firmware_revision: Optional[str] = None,
+        device_name: str | None = None,
+        name: str | None = None,
+        name_id: int | None = None,
+        firmware_revision: str | None = None,
     ) -> KnownFurby:
         """
         Add or update a Furby in the cache.
@@ -114,7 +113,7 @@ class FurbyCache:
 
         return furby
 
-    def get(self, address: str) -> Optional[KnownFurby]:
+    def get(self, address: str) -> KnownFurby | None:
         """
         Get a Furby from the cache by MAC address.
         
@@ -188,7 +187,7 @@ class FurbyCache:
         else:
             logger.warning(f"Cannot update name for unknown Furby: {address}")
 
-    def get_most_recent(self) -> Optional[KnownFurby]:
+    def get_most_recent(self) -> KnownFurby | None:
         """
         Get the most recently seen Furby.
         
