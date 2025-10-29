@@ -120,7 +120,7 @@ Run: `@workspace Connect to my Furby`
 
 ## See Also
 
-- [Full Documentation](../docs/MCP.md)
-- [Usage Examples](MCP_EXAMPLES.md)
-- [Action List](../docs/actionlist.md)
-- [PyFluff README](../README.md)
+- [Full Documentation](docs/MCP.md)
+- [Usage Examples](examples/MCP_EXAMPLES.md)
+- [Action List](docs/actionlist.md)
+- [PyFluff README](README.md)
