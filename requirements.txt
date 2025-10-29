@@ -18,3 +18,6 @@ python-json-logger>=2.0.7  # JSON log formatter
 httpx>=0.25.0              # Async HTTP client
 rich>=13.7.0               # Beautiful terminal output
 typer>=0.9.0               # CLI framework
+
+# MCP (Model Context Protocol) support
+mcp>=1.0.0                 # MCP server for VS Code Copilot integration

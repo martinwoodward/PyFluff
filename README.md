@@ -30,6 +30,7 @@ PyFluff is a complete rewrite of the original [bluefluff](https://github.com/Jei
 * **Bleak BLE Stack**: Well-maintained, cross-platform BLE library
 * **FastAPI Web Server**: Modern async web framework with automatic OpenAPI documentation
 * **WebSocket Support**: Real-time sensor data streaming
+* **MCP Server**: Control Furby via VS Code Copilot using Model Context Protocol
 * **Async/Await**: Non-blocking operations throughout
 * **Structured Logging**: JSON-formatted logs for easy parsing
 * **Type Safety**: Full type hints for better IDE support and fewer bugs
@@ -88,7 +89,37 @@ Bluetooth should work out of the box. Ensure Bluetooth is enabled in System Pref
 
 ## Usage
 
-### Starting the Server
+### MCP Server (VS Code Copilot Integration)
+
+Control your Furby directly from VS Code using GitHub Copilot:
+
+```bash
+# Start the MCP server
+pyfluff mcp-server
+```
+
+Then configure VS Code to use the server in `~/.vscode/mcp-servers.json`:
+
+```json
+{
+  "mcpServers": {
+    "pyfluff": {
+      "command": "python",
+      "args": ["-m", "pyfluff.cli", "mcp-server"]
+    }
+  }
+}
+```
+
+Now you can ask Copilot to control your Furby:
+- "Discover my Furby and connect to it"
+- "Change the antenna to purple"
+- "Make my Furby giggle"
+- "Set the mood to excited"
+
+See the [MCP documentation](docs/MCP.md) for detailed setup and usage instructions.
+
+### Starting the Web Server
 
 ```bash
 # Activate virtual environment

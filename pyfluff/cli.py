@@ -56,7 +56,7 @@ def scan(
             )
 
         console.print(table)
-        
+
         if not all and len(devices) == 0:
             console.print("\n[yellow]💡 Tip: Furbies in F2F mode may not advertise.[/yellow]")
             console.print("[yellow]   Try: pyfluff scan --all[/yellow]")
@@ -240,9 +240,7 @@ def upload_dlc(
         async with FurbyConnect() as furby:
             dlc_manager = DLCManager(furby)
 
-            with console.status(
-                f"[bold green]Uploading {file_path.name} to slot {slot}..."
-            ):
+            with console.status(f"[bold green]Uploading {file_path.name} to slot {slot}..."):
                 await dlc_manager.upload_dlc(file_path, slot)
 
             console.print(f"[green]✓[/green] DLC uploaded successfully to slot {slot}")
@@ -277,7 +275,9 @@ def activate_dlc() -> None:
 
 
 @app.command()
-def list_known(cache_file: str = typer.Option("known_furbies.json", help="Cache file path")) -> None:
+def list_known(
+    cache_file: str = typer.Option("known_furbies.json", help="Cache file path")
+) -> None:
     """List all known Furby devices from cache."""
     try:
         cache = FurbyCache(cache_file)
@@ -296,6 +296,7 @@ def list_known(cache_file: str = typer.Option("known_furbies.json", help="Cache 
 
         for furby in furbies:
             from datetime import datetime
+
             last_seen = datetime.fromtimestamp(furby.last_seen).strftime("%Y-%m-%d %H:%M:%S")
             table.add_row(
                 furby.address,
@@ -355,6 +356,33 @@ def clear_known(
 
     except Exception as e:
         console.print(f"[red]Failed to clear cache: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def mcp_server(
+    transport: str = typer.Option(
+        "stdio", "--transport", "-t", help="Transport type: stdio, sse, or streamable-http"
+    ),
+) -> None:
+    """
+    Start the MCP (Model Context Protocol) server for VS Code Copilot integration.
+
+    This starts an MCP server that exposes Furby control functions as tools
+    that can be used by VS Code Copilot and other AI assistants.
+
+    Default transport is 'stdio' which works with VS Code.
+    """
+    from pyfluff.mcp_server import run_server
+
+    try:
+        console.print(f"[green]Starting MCP server with {transport} transport...[/green]")
+        console.print("[yellow]Press Ctrl+C to stop[/yellow]")
+        run_server(transport=transport)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Failed to start MCP server: {e}[/red]")
         raise typer.Exit(1)
 
 
