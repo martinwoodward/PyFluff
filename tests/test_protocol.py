@@ -100,10 +100,13 @@ def test_build_dlc_announce_command() -> None:
     # Check command ID
     assert cmd[0] == GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value
 
-    # Check size bytes (big-endian)
-    assert cmd[1] == 0x00  # (12345 >> 16) & 0xFF
-    assert cmd[2] == 0x30  # (12345 >> 8) & 0xFF
-    assert cmd[3] == 0x39  # 12345 & 0xFF
+    # Check 0x00 byte
+    assert cmd[1] == 0x00
+
+    # Check size bytes (big-endian) - note offset by 1 due to 0x00 byte
+    assert cmd[2] == 0x00  # (12345 >> 16) & 0xFF
+    assert cmd[3] == 0x30  # (12345 >> 8) & 0xFF
+    assert cmd[4] == 0x39  # 12345 & 0xFF
 
     # Check slot
     assert cmd[5] == 2

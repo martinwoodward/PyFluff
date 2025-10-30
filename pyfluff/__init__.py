@@ -9,6 +9,6 @@ __version__ = "1.0.0"
 __author__ = "PyFluff Contributors"
 
 from pyfluff.furby import FurbyConnect
-from pyfluff.protocol import FurbyProtocol, FurbyService, FurbyCharacteristic
+from pyfluff.protocol import FurbyCharacteristic, FurbyProtocol, FurbyService
 
 __all__ = ["FurbyConnect", "FurbyProtocol", "FurbyService", "FurbyCharacteristic"]

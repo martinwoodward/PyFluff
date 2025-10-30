@@ -9,6 +9,8 @@ import asyncio
 import logging
 from pathlib import Path
 
+import aiofiles
+
 from pyfluff.furby import FurbyConnect
 from pyfluff.protocol import FILE_CHUNK_SIZE, FileTransferMode, FurbyProtocol
 
@@ -72,9 +74,8 @@ class DLCManager:
         if not dlc_path.exists():
             raise FileNotFoundError(f"DLC file not found: {dlc_path}")
 
-        # Read DLC file
-        dlc_data = dlc_path.read_bytes()
-        file_size = len(dlc_data)
+        # Get file size without reading entire file
+        file_size = dlc_path.stat().st_size
         filename = dlc_path.name
 
         logger.info(f"Uploading DLC: {filename} ({file_size} bytes) to slot {slot}")
@@ -106,24 +107,26 @@ class DLCManager:
                     "Furby did not respond to DLC upload announcement"
                 ) from None
 
-            # Upload file in chunks
+            # Upload file in chunks using async file I/O
             logger.info("Furby ready, uploading data...")
-            offset = 0
             chunk_count = 0
 
-            while offset < file_size:
-                chunk = dlc_data[offset : offset + FILE_CHUNK_SIZE]
-                await self.furby._write_file(chunk)
-                offset += len(chunk)
-                chunk_count += 1
+            async with aiofiles.open(dlc_path, "rb") as f:
+                while True:
+                    chunk = await f.read(FILE_CHUNK_SIZE)
+                    if not chunk:
+                        break
 
-                # Small delay to prevent overwhelming Furby
-                await asyncio.sleep(0.005)
+                    await self.furby._write_file(chunk)
+                    chunk_count += 1
 
-                # Progress logging
-                if chunk_count % 100 == 0:
-                    progress = (offset / file_size) * 100
-                    logger.info(f"Upload progress: {progress:.1f}%")
+                    # Small delay to prevent overwhelming Furby
+                    await asyncio.sleep(0.005)
+
+                    # Progress logging
+                    if chunk_count % 100 == 0:
+                        progress = (chunk_count * FILE_CHUNK_SIZE / file_size) * 100
+                        logger.info(f"Upload progress: {progress:.1f}%")
 
             logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
 
