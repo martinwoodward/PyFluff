@@ -4,19 +4,20 @@ Tests for PyFluff data models (Pydantic validation).
 
 import pytest
 from pydantic import ValidationError
+
 from pyfluff.models import (
-    AntennaColor,
-    ActionSequence,
     ActionList,
-    MoodUpdate,
-    DLCUpload,
-    SensorData,
-    ConnectRequest,
-    FurbyStatus,
+    ActionSequence,
+    AntennaColor,
     CommandResponse,
+    ConnectRequest,
+    DLCUpload,
     FurbyInfo,
-    KnownFurby,
+    FurbyStatus,
     KnownFurbiesConfig,
+    KnownFurby,
+    MoodUpdate,
+    SensorData,
 )
 
 

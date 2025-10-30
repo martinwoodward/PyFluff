@@ -3,11 +3,12 @@ Basic tests for PyFluff protocol module.
 """
 
 import pytest
+
 from pyfluff.protocol import (
-    FurbyProtocol,
-    MoodMeterType,
-    GeneralPlusCommand,
     FurbyMessage,
+    FurbyProtocol,
+    GeneralPlusCommand,
+    MoodMeterType,
 )
 
 
@@ -157,7 +158,7 @@ def test_antenna_command_bounds() -> None:
     # Min values
     cmd = FurbyProtocol.build_antenna_command(0, 0, 0)
     assert cmd == bytes([0x14, 0, 0, 0])
-    
+
     # Max values
     cmd = FurbyProtocol.build_antenna_command(255, 255, 255)
     assert cmd == bytes([0x14, 255, 255, 255])
@@ -180,7 +181,7 @@ def test_name_command_bounds() -> None:
     # Min name ID
     cmd = FurbyProtocol.build_name_command(0)
     assert cmd == bytes([0x21, 0])
-    
+
     # Max name ID
     cmd = FurbyProtocol.build_name_command(128)
     assert cmd == bytes([0x21, 128])
@@ -192,9 +193,9 @@ def test_moodmeter_all_types() -> None:
     for mood_type in MoodMeterType:
         cmd = FurbyProtocol.build_moodmeter_command(1, mood_type, 50)
         assert cmd[0] == 0x23  # Command ID
-        assert cmd[1] == 1     # Action (set)
+        assert cmd[1] == 1  # Action (set)
         assert cmd[2] == mood_type.value
-        assert cmd[3] == 50    # Value
+        assert cmd[3] == 50  # Value
 
 
 def test_dlc_announce_with_short_filename() -> None:
@@ -242,10 +243,10 @@ def test_get_furby_message_type_all_messages() -> None:
     # Test a few known message types
     msg = FurbyProtocol.get_furby_message_type(bytes([0x20, 0x01]))
     assert msg == FurbyMessage.ENTERED_NAMING_MODE
-    
+
     msg = FurbyProtocol.get_furby_message_type(bytes([0x20, 0x04]))
     assert msg == FurbyMessage.ENTERED_APP_MODE
-    
+
     msg = FurbyProtocol.get_furby_message_type(bytes([0x20, 0x0C]))
     assert msg == FurbyMessage.SEQUENCE_PLAYING
 
@@ -259,16 +260,16 @@ def test_get_furby_message_type_short_data() -> None:
 def test_furby_names_dict() -> None:
     """Test that FURBY_NAMES dictionary is properly populated."""
     from pyfluff.protocol import FURBY_NAMES
-    
+
     # Should have 129 names (IDs 0-128)
     assert len(FURBY_NAMES) == 129
-    
+
     # Check some known names
     assert FURBY_NAMES[0] == "Ah-Bay"
     assert FURBY_NAMES[11] == "Bee-Boh"
     assert FURBY_NAMES[55] == "Doo-Doo"
     assert FURBY_NAMES[128] == "Way-Toh"
-    
+
     # All IDs from 0-128 should be present
     for i in range(129):
         assert i in FURBY_NAMES

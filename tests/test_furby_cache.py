@@ -6,9 +6,7 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
 from pyfluff.furby_cache import FurbyCache
-from pyfluff.models import KnownFurby
 
 
 class TestFurbyCache:
@@ -19,7 +17,7 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             assert cache.cache_file == cache_path
             assert len(cache.config.furbies) == 0
             assert not cache_path.exists()  # Not saved yet
@@ -29,12 +27,9 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
-            furby = cache.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                device_name="Furby"
-            )
-            
+
+            furby = cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby")
+
             assert furby.address == "AA:BB:CC:DD:EE:FF"
             assert furby.device_name == "Furby"
             assert furby.last_seen > 0
@@ -45,21 +40,14 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             # Add Furby
-            furby1 = cache.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                device_name="Furby"
-            )
+            furby1 = cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby")
             first_timestamp = furby1.last_seen
-            
+
             # Update same Furby
-            furby2 = cache.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                name="Ah-Bay",
-                name_id=0
-            )
-            
+            furby2 = cache.add_or_update(address="AA:BB:CC:DD:EE:FF", name="Ah-Bay", name_id=0)
+
             # Should be same address but updated
             assert furby2.address == "AA:BB:CC:DD:EE:FF"
             assert furby2.name == "Ah-Bay"
@@ -71,24 +59,21 @@ class TestFurbyCache:
         """Test saving and loading cache from disk."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
-            
+
             # Create and populate cache
             cache1 = FurbyCache(cache_path)
             cache1.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                device_name="Furby",
-                name="Ah-Bay",
-                name_id=0
+                address="AA:BB:CC:DD:EE:FF", device_name="Furby", name="Ah-Bay", name_id=0
             )
             # add_or_update auto-saves via _save()
-            
+
             assert cache_path.exists()
-            
+
             # Load cache in new instance
             cache2 = FurbyCache(cache_path)
             assert len(cache2.config.furbies) == 1
             assert "AA:BB:CC:DD:EE:FF" in cache2.config.furbies
-            
+
             furby = cache2.config.furbies["AA:BB:CC:DD:EE:FF"]
             assert furby.name == "Ah-Bay"
             assert furby.name_id == 0
@@ -98,12 +83,9 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
-            cache.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                device_name="Furby"
-            )
-            
+
+            cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby")
+
             furby = cache.get("AA:BB:CC:DD:EE:FF")
             assert furby is not None
             assert furby.address == "AA:BB:CC:DD:EE:FF"
@@ -113,7 +95,7 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             furby = cache.get("AA:BB:CC:DD:EE:FF")
             assert furby is None
 
@@ -122,14 +104,14 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby1")
             cache.add_or_update(address="11:22:33:44:55:66", device_name="Furby2")
             cache.add_or_update(address="FF:EE:DD:CC:BB:AA", device_name="Furby3")
-            
+
             furbies = cache.get_all()
             assert len(furbies) == 3
-            
+
             addresses = [f.address for f in furbies]
             assert "AA:BB:CC:DD:EE:FF" in addresses
             assert "11:22:33:44:55:66" in addresses
@@ -140,12 +122,12 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby1")
             cache.add_or_update(address="11:22:33:44:55:66", device_name="Furby2")
-            
+
             assert len(cache.config.furbies) == 2
-            
+
             result = cache.remove("AA:BB:CC:DD:EE:FF")
             assert result is True
             assert len(cache.config.furbies) == 1
@@ -157,7 +139,7 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             result = cache.remove("AA:BB:CC:DD:EE:FF")
             assert result is False
 
@@ -166,12 +148,12 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby1")
             cache.add_or_update(address="11:22:33:44:55:66", device_name="Furby2")
-            
+
             assert len(cache.config.furbies) == 2
-            
+
             cache.clear()
             assert len(cache.config.furbies) == 0
 
@@ -179,11 +161,11 @@ class TestFurbyCache:
         """Test loading a corrupted cache file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
-            
+
             # Write corrupted JSON
             with open(cache_path, "w") as f:
                 f.write("{ this is not valid json }")
-            
+
             # Should handle gracefully and start with empty cache
             cache = FurbyCache(cache_path)
             assert len(cache.config.furbies) == 0
@@ -193,27 +175,24 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                device_name="Furby1",
-                name="Ah-Bay",
-                name_id=0
+                address="AA:BB:CC:DD:EE:FF", device_name="Furby1", name="Ah-Bay", name_id=0
             )
             cache.add_or_update(
                 address="11:22:33:44:55:66",
                 device_name="Furby2",
                 name="Bee-Boh",
                 name_id=11,
-                firmware_revision="1.2.3"
+                firmware_revision="1.2.3",
             )
-            
+
             # add_or_update auto-saves via _save()
-            
+
             # Verify file contents
-            with open(cache_path, "r") as f:
+            with open(cache_path) as f:
                 data = json.load(f)
-            
+
             assert "furbies" in data
             assert len(data["furbies"]) == 2
             assert "AA:BB:CC:DD:EE:FF" in data["furbies"]
@@ -225,10 +204,10 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "subdir" / "nested" / "cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby")
             # add_or_update auto-saves via _save()
-            
+
             # Should create parent directories
             assert cache_path.exists()
             assert cache_path.parent.exists()
@@ -238,20 +217,20 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             # Add Furbies with slight delays to ensure different timestamps
             import time
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby1")
             time.sleep(0.01)
             cache.add_or_update(address="11:22:33:44:55:66", device_name="Furby2")
             time.sleep(0.01)
             cache.add_or_update(address="FF:EE:DD:CC:BB:AA", device_name="Furby3")
-            
+
             # get_all() returns sorted list (most recent first)
             furbies = cache.get_all()
             assert len(furbies) == 3
-            
+
             # Should be in reverse chronological order
             assert furbies[0].address == "FF:EE:DD:CC:BB:AA"
             assert furbies[1].address == "11:22:33:44:55:66"
@@ -262,13 +241,10 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby")
-            cache.add_or_update(
-                address="AA:BB:CC:DD:EE:FF",
-                firmware_revision="1.2.3"
-            )
-            
+            cache.add_or_update(address="AA:BB:CC:DD:EE:FF", firmware_revision="1.2.3")
+
             furby = cache.get("AA:BB:CC:DD:EE:FF")
             assert furby is not None
             assert furby.firmware_revision == "1.2.3"
@@ -278,10 +254,10 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby1")
             cache.add_or_update(address="11:22:33:44:55:66", device_name="Furby2")
-            
+
             addresses = cache.get_addresses()
             assert len(addresses) == 2
             assert "AA:BB:CC:DD:EE:FF" in addresses
@@ -292,10 +268,10 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby")
             cache.update_name("AA:BB:CC:DD:EE:FF", "Ah-Bay", 0)
-            
+
             furby = cache.get("AA:BB:CC:DD:EE:FF")
             assert furby is not None
             assert furby.name == "Ah-Bay"
@@ -306,7 +282,7 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             # Should not raise error, just log warning
             cache.update_name("AA:BB:CC:DD:EE:FF", "Ah-Bay", 0)
             assert len(cache.config.furbies) == 0
@@ -316,13 +292,13 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             import time
-            
+
             cache.add_or_update(address="AA:BB:CC:DD:EE:FF", device_name="Furby1")
             time.sleep(0.01)
             cache.add_or_update(address="11:22:33:44:55:66", device_name="Furby2")
-            
+
             most_recent = cache.get_most_recent()
             assert most_recent is not None
             assert most_recent.address == "11:22:33:44:55:66"
@@ -332,6 +308,6 @@ class TestFurbyCache:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_path = Path(tmpdir) / "test_cache.json"
             cache = FurbyCache(cache_path)
-            
+
             most_recent = cache.get_most_recent()
             assert most_recent is None
