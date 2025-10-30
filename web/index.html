@@ -149,6 +149,49 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- DLC Management -->
+                <section class="card card-compact">
+                    <h2>DLC Management</h2>
+                    <div class="dlc-controls">
+                        <div class="dlc-upload-section">
+                            <input type="file" id="dlc-file" accept=".dlc,.DLC" class="file-input">
+                            <div class="dlc-options">
+                                <label for="dlc-slot" class="dlc-label">Slot:</label>
+                                <select id="dlc-slot" class="dlc-slot-select">
+                                    <option value="0">Slot 0 (2M)</option>
+                                    <option value="1">Slot 1 (1M)</option>
+                                    <option value="2" selected>Slot 2 (.5M)</option>
+                                </select>
+                            </div>
+                            <button id="btn-flash-activate" class="btn btn-primary btn-full">
+                                ⚡ Flash &amp; Activate
+                            </button>
+                        </div>
+                        
+                        <div class="dlc-progress-container hidden" id="dlc-progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="dlc-progress-fill"></div>
+                            </div>
+                            <div class="progress-text" id="dlc-progress-text">Ready</div>
+                        </div>
+
+                        <details class="dlc-advanced">
+                            <summary>Advanced Options</summary>
+                            <div class="dlc-advanced-buttons">
+                                <button id="btn-upload-dlc" class="btn btn-secondary btn-sm">Upload Only</button>
+                                <button id="btn-load-dlc" class="btn btn-secondary btn-sm">Load from Slot</button>
+                                <button id="btn-activate-dlc" class="btn btn-secondary btn-sm">Activate</button>
+                                <button id="btn-deactivate-dlc" class="btn btn-secondary btn-sm">Deactivate</button>
+                                <button id="btn-delete-dlc" class="btn btn-secondary btn-sm">Delete Slot</button>
+                            </div>
+                        </details>
+
+                        <div class="dlc-info">
+                            <small>💡 <strong>Flash &amp; Activate</strong> does everything: deletes old DLC, uploads new one, loads it, and activates it (3-5 min).</small>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <!-- Log -->

@@ -6,6 +6,7 @@ Provides HTTP API and WebSocket support for controlling Furby Connect.
 
 import asyncio
 import logging
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -451,8 +452,6 @@ async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
     fb = get_furby()
 
     # Save uploaded file temporarily
-    import tempfile
-
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dlc") as tmp:
         content = await file.read()
         tmp.write(content)
@@ -505,6 +504,132 @@ async def delete_dlc(slot: int) -> CommandResponse:
     dlc_manager = DLCManager(fb)
     await dlc_manager.delete_dlc(slot)
     return CommandResponse(success=True, message=f"DLC slot {slot} deleted")
+
+
+@app.post("/dlc/flash-and-activate", response_model=CommandResponse)
+async def flash_and_activate(
+    file: UploadFile, 
+    slot: int = 2,
+    delete_first: bool = True
+) -> CommandResponse:
+    """
+    Complete DLC workflow: Upload, load, and activate in one call.
+    
+    This endpoint performs all necessary steps to flash a DLC file:
+    1. (Optional) Delete existing DLC in slot
+    2. Upload the new DLC file
+    3. Load the DLC from slot
+    4. Activate the DLC
+    
+    Progress updates are sent via WebSocket to /ws/dlc endpoint.
+    
+    Args:
+        file: UploadFile containing the DLC file to flash
+        slot: DLC slot number (0-2, default: 2)
+        delete_first: Whether to delete existing DLC in slot first (default: True)
+        
+    Returns:
+        CommandResponse with success status and message
+        
+    Raises:
+        HTTPException: If not connected to Furby or upload fails
+    """
+    fb = get_furby()
+
+    # Save uploaded file temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dlc") as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = Path(tmp.name)
+
+    try:
+        dlc_manager = DLCManager(fb)
+        
+        # Create progress callback that broadcasts to WebSocket clients
+        async def progress_callback(bytes_done: int, total_bytes: int, message: str):
+            progress_data = {
+                "bytes_done": bytes_done,
+                "total_bytes": total_bytes,
+                "message": message,
+                "percentage": (bytes_done / total_bytes * 100) if total_bytes > 0 else 0
+            }
+            # Broadcast to all connected DLC WebSocket clients
+            await broadcast_dlc_progress(progress_data)
+        
+        await dlc_manager.flash_and_activate(
+            tmp_path, 
+            slot=slot,
+            delete_first=delete_first,
+            progress_callback=progress_callback
+        )
+        
+        return CommandResponse(
+            success=True, 
+            message=f"DLC successfully flashed and activated in slot {slot}"
+        )
+    except Exception as e:
+        logger.error(f"DLC flash and activate failed: {e}")
+        # Send error to WebSocket clients
+        await broadcast_dlc_progress({
+            "bytes_done": 0,
+            "total_bytes": 0,
+            "message": f"Error: {str(e)}",
+            "percentage": 0,
+            "error": True
+        })
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+# Global list of DLC WebSocket connections
+dlc_progress_clients: list[WebSocket] = []
+
+
+async def broadcast_dlc_progress(progress_data: dict) -> None:
+    """Broadcast DLC progress to all connected WebSocket clients."""
+    if not dlc_progress_clients:
+        return
+    
+    # Send to all connected clients
+    disconnected = []
+    for ws in dlc_progress_clients:
+        try:
+            await ws.send_json(progress_data)
+        except Exception:
+            disconnected.append(ws)
+    
+    # Remove disconnected clients
+    for ws in disconnected:
+        dlc_progress_clients.remove(ws)
+
+
+@app.websocket("/ws/dlc")
+async def websocket_dlc_progress(websocket: WebSocket) -> None:
+    """WebSocket endpoint for DLC upload progress updates."""
+    await websocket.accept()
+    dlc_progress_clients.append(websocket)
+    logger.info("DLC progress WebSocket client connected")
+    
+    try:
+        # Keep connection alive by waiting for client messages or pings
+        # This avoids unnecessary CPU wake-ups every second
+        while True:
+            try:
+                # Wait for any message from client (including pings) with 60s timeout
+                await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
+            except asyncio.TimeoutError:
+                # Send a ping to check if connection is still alive
+                await websocket.send_json({"type": "ping"})
+    except WebSocketDisconnect:
+        logger.info("DLC progress WebSocket client disconnected")
+        if websocket in dlc_progress_clients:
+            dlc_progress_clients.remove(websocket)
+    except Exception as e:
+        logger.error(f"DLC progress WebSocket error: {e}")
+        if websocket in dlc_progress_clients:
+            dlc_progress_clients.remove(websocket)
+        await websocket.close()
 
 
 @app.websocket("/ws/logs")
