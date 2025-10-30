@@ -8,11 +8,15 @@ uploaded to Furby.
 import asyncio
 import logging
 from pathlib import Path
+from typing import Callable, Awaitable
 
 from pyfluff.furby import FurbyConnect
 from pyfluff.protocol import FILE_CHUNK_SIZE, FileTransferMode, FurbyProtocol
 
 logger = logging.getLogger(__name__)
+
+# Type alias for progress callback
+ProgressCallback = Callable[[int, int, str], Awaitable[None]] | None
 
 
 class DLCManager:
@@ -29,6 +33,7 @@ class DLCManager:
         self._transfer_ready = asyncio.Event()
         self._transfer_complete = asyncio.Event()
         self._transfer_error: str | None = None
+        self._progress_callback: ProgressCallback = None
 
     def _file_transfer_callback(self, data: bytes) -> None:
         """Handle file transfer status notifications."""
@@ -54,7 +59,12 @@ class DLCManager:
             logger.warning(f"Unknown file transfer mode: {data[1]}")
 
     async def upload_dlc(
-        self, dlc_path: Path, slot: int = 2, timeout: float = 60.0, enable_nordic_ack: bool = True
+        self, 
+        dlc_path: Path, 
+        slot: int = 2, 
+        timeout: float = 300.0,
+        enable_nordic_ack: bool = True,
+        progress_callback: ProgressCallback = None
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -62,8 +72,9 @@ class DLCManager:
         Args:
             dlc_path: Path to DLC file
             slot: Slot number to upload to (default: 2)
-            timeout: Upload timeout in seconds
+            timeout: Upload timeout in seconds (default: 300 = 5 minutes)
             enable_nordic_ack: Enable Nordic packet ACK for monitoring (default: True)
+            progress_callback: Optional async callback(bytes_uploaded, total_bytes, status_message)
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist
@@ -72,12 +83,18 @@ class DLCManager:
         if not dlc_path.exists():
             raise FileNotFoundError(f"DLC file not found: {dlc_path}")
 
+        # Store progress callback
+        self._progress_callback = progress_callback
+
         # Read DLC file
         dlc_data = dlc_path.read_bytes()
         file_size = len(dlc_data)
         filename = dlc_path.name
 
         logger.info(f"Uploading DLC: {filename} ({file_size} bytes) to slot {slot}")
+        
+        if self._progress_callback:
+            await self._progress_callback(0, file_size, f"Starting upload: {filename}")
 
         # Enable Nordic Packet ACK for monitoring
         if enable_nordic_ack:
@@ -96,6 +113,9 @@ class DLCManager:
             cmd = FurbyProtocol.build_dlc_announce_command(file_size, slot, filename)
             await self.furby._write_gp(cmd)
 
+            if self._progress_callback:
+                await self._progress_callback(0, file_size, "Waiting for Furby to accept upload...")
+
             # Wait for ready signal
             try:
                 await asyncio.wait_for(
@@ -108,6 +128,9 @@ class DLCManager:
 
             # Upload file in chunks
             logger.info("Furby ready, uploading data...")
+            if self._progress_callback:
+                await self._progress_callback(0, file_size, "Uploading data...")
+            
             offset = 0
             chunk_count = 0
 
@@ -120,12 +143,19 @@ class DLCManager:
                 # Small delay to prevent overwhelming Furby
                 await asyncio.sleep(0.005)
 
-                # Progress logging
-                if chunk_count % 100 == 0:
+                # Progress updates
+                if chunk_count % 50 == 0:  # Update every 50 chunks
                     progress = (offset / file_size) * 100
-                    logger.info(f"Upload progress: {progress:.1f}%")
+                    logger.debug(f"Upload progress: {progress:.1f}%")
+                    if self._progress_callback:
+                        await self._progress_callback(
+                            offset, file_size, 
+                            f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)"
+                        )
 
             logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
+            if self._progress_callback:
+                await self._progress_callback(file_size, file_size, "Waiting for Furby to confirm...")
 
             # Wait for transfer complete
             try:
@@ -140,11 +170,14 @@ class DLCManager:
                 raise RuntimeError(self._transfer_error)
 
             logger.info("DLC upload complete!")
+            if self._progress_callback:
+                await self._progress_callback(file_size, file_size, "Upload complete!")
 
         finally:
             # Remove callback
             if self._file_transfer_callback in self.furby._gp_callbacks:
                 self.furby._gp_callbacks.remove(self._file_transfer_callback)
+            self._progress_callback = None
 
     async def load_dlc(self, slot: int) -> None:
         """
@@ -184,3 +217,63 @@ class DLCManager:
         cmd = FurbyProtocol.build_delete_dlc_command(slot)
         await self.furby._write_gp(cmd)
         logger.info(f"Deleted DLC from slot {slot}")
+
+    async def flash_and_activate(
+        self,
+        dlc_path: Path,
+        slot: int = 2,
+        delete_first: bool = True,
+        progress_callback: ProgressCallback = None
+    ) -> None:
+        """
+        Complete workflow: Upload, load, and activate a DLC file in one call.
+
+        This is a convenience method that performs all necessary steps to flash
+        a DLC file to Furby and make it active. Perfect for users who want a
+        simple one-click solution.
+
+        Args:
+            dlc_path: Path to DLC file
+            slot: Slot number to use (default: 2)
+            delete_first: Delete existing DLC in slot first (default: True)
+            progress_callback: Optional async callback(bytes_uploaded, total_bytes, status_message)
+
+        Raises:
+            FileNotFoundError: If DLC file doesn't exist
+            RuntimeError: If any step fails
+        """
+        try:
+            # Step 1: Delete existing DLC if requested
+            if delete_first:
+                if progress_callback:
+                    await progress_callback(0, 0, f"Deleting existing DLC in slot {slot}...")
+                await self.delete_dlc(slot)
+                await asyncio.sleep(0.5)  # Give Furby time to process
+
+            # Step 2: Upload DLC file
+            if progress_callback:
+                await progress_callback(0, 0, "Starting DLC upload...")
+            await self.upload_dlc(dlc_path, slot, progress_callback=progress_callback)
+            await asyncio.sleep(1.0)  # Give Furby time to finalize
+
+            # Step 3: Load DLC
+            if progress_callback:
+                await progress_callback(0, 0, f"Loading DLC from slot {slot}...")
+            await self.load_dlc(slot)
+            await asyncio.sleep(0.5)
+
+            # Step 4: Activate DLC
+            if progress_callback:
+                await progress_callback(0, 0, "Activating DLC...")
+            await self.activate_dlc()
+            await asyncio.sleep(0.5)
+
+            logger.info(f"DLC flash and activate complete! Slot {slot} is now active.")
+            if progress_callback:
+                await progress_callback(0, 0, f"✓ DLC activated in slot {slot}!")
+
+        except Exception as e:
+            logger.error(f"Flash and activate failed: {e}")
+            if progress_callback:
+                await progress_callback(0, 0, f"✗ Error: {str(e)}")
+            raise

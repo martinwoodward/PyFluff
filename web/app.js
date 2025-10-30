@@ -421,28 +421,133 @@ document.querySelectorAll('.mood-slider').forEach(slider => {
 });
 
 // DLC management
-// Commented out - DLC management UI is hidden
-/*
-document.getElementById('btn-upload-dlc').addEventListener('click', async () => {
+let dlcWebSocket = null;
+
+function connectDLCWebSocket() {
+    if (dlcWebSocket && dlcWebSocket.readyState === WebSocket.OPEN) {
+        return;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    dlcWebSocket = new WebSocket(`${protocol}//${window.location.host}/ws/dlc`);
+
+    dlcWebSocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        updateDLCProgress(data);
+    };
+
+    dlcWebSocket.onerror = (error) => {
+        console.error('DLC WebSocket error:', error);
+    };
+
+    dlcWebSocket.onclose = () => {
+        console.log('DLC WebSocket closed');
+        dlcWebSocket = null;
+    };
+}
+
+function updateDLCProgress(data) {
+    const container = document.getElementById('dlc-progress-container');
+    const fill = document.getElementById('dlc-progress-fill');
+    const text = document.getElementById('dlc-progress-text');
+
+    // Show progress container
+    container.classList.remove('hidden');
+
+    // Update progress bar
+    fill.style.width = `${data.percentage}%`;
+
+    // Update text
+    text.textContent = data.message;
+
+    // Log message
+    const logType = data.error ? 'error' : (data.percentage === 100 ? 'success' : 'info');
+    log(data.message, logType);
+
+    // Hide progress after completion
+    if (data.percentage === 100 || data.error) {
+        setTimeout(() => {
+            container.classList.add('hidden');
+            fill.style.width = '0%';
+        }, 3000);
+    }
+}
+
+// Flash and Activate (one-click solution)
+document.getElementById('btn-flash-activate').addEventListener('click', async () => {
     const fileInput = document.getElementById('dlc-file');
     const slot = parseInt(document.getElementById('dlc-slot').value);
-    
+
     if (!fileInput.files.length) {
         log('Please select a DLC file', 'error');
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
-    
+
     try {
+        // Connect to WebSocket for progress updates
+        connectDLCWebSocket();
+
+        // Disable button during upload
+        const button = document.getElementById('btn-flash-activate');
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = '⏳ Flashing...';
+
+        log(`Starting DLC flash and activate (slot ${slot})...`, 'info');
+        log('This will take 3-5 minutes. Please wait...', 'info');
+
+        const response = await fetch(`${API_BASE}/dlc/flash-and-activate?slot=${slot}&delete_first=true`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            log(result.message, 'success');
+            log('🎉 DLC is now active! Try action input 75 to use it.', 'success');
+        } else {
+            throw new Error(result.detail || 'Flash and activate failed');
+        }
+
+        // Re-enable button
+        button.disabled = false;
+        button.textContent = originalText;
+
+    } catch (error) {
+        log(`DLC flash and activate failed: ${error.message}`, 'error');
+        const button = document.getElementById('btn-flash-activate');
+        button.disabled = false;
+        button.textContent = '⚡ Flash & Activate';
+    }
+});
+
+// Advanced DLC operations
+document.getElementById('btn-upload-dlc').addEventListener('click', async () => {
+    const fileInput = document.getElementById('dlc-file');
+    const slot = parseInt(document.getElementById('dlc-slot').value);
+
+    if (!fileInput.files.length) {
+        log('Please select a DLC file', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+        log(`Uploading DLC to slot ${slot}...`, 'info');
+        
         const response = await fetch(`${API_BASE}/dlc/upload?slot=${slot}`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
             log(result.message, 'success');
         } else {
@@ -471,7 +576,31 @@ document.getElementById('btn-activate-dlc').addEventListener('click', async () =
         log(`DLC activation failed: ${error.message}`, 'error');
     }
 });
-*/
+
+document.getElementById('btn-deactivate-dlc').addEventListener('click', async () => {
+    const slot = parseInt(document.getElementById('dlc-slot').value);
+    try {
+        const result = await apiCall(`/dlc/deactivate/${slot}`, 'POST');
+        log(result.message, 'success');
+    } catch (error) {
+        log(`DLC deactivate failed: ${error.message}`, 'error');
+    }
+});
+
+document.getElementById('btn-delete-dlc').addEventListener('click', async () => {
+    const slot = parseInt(document.getElementById('dlc-slot').value);
+    
+    if (!confirm(`Delete DLC from slot ${slot}? This cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const result = await apiCall(`/dlc/delete/${slot}`, 'POST');
+        log(result.message, 'success');
+    } catch (error) {
+        log(`DLC delete failed: ${error.message}`, 'error');
+    }
+});
 
 // Initialize
 updateStatus();
