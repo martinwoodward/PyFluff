@@ -141,7 +141,8 @@ class DLCManager:
                 chunk_count += 1
 
                 # Small delay to prevent overwhelming Furby
-                # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout
+                # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout.
+                # NOTE: This value may require calibration for different Furby devices or BLE implementations.
                 await asyncio.sleep(0.002)
 
                 # Progress updates
