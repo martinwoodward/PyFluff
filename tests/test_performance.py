@@ -7,13 +7,15 @@ These tests validate that performance optimizations are working correctly.
 import asyncio
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
+import aiofiles
 import pytest
 
 from pyfluff.furby import FurbyConnect
 from pyfluff.furby_cache import FurbyCache
-from pyfluff.models import FurbyInfo, KnownFurby
+from pyfluff.models import KnownFurby
+from pyfluff.protocol import FILE_CHUNK_SIZE
 
 
 @pytest.mark.asyncio
@@ -80,8 +82,6 @@ async def test_device_info_concurrent_reads() -> None:
 
 def test_furby_cache_batched_writes(tmp_path: Path) -> None:
     """Test that cache writes are batched efficiently."""
-    import asyncio
-
     cache_file = tmp_path / "test_cache.json"
     cache = FurbyCache(cache_file)
 
@@ -138,34 +138,29 @@ def test_furby_cache_efficient_sorting(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_dlc_chunked_reading() -> None:
+async def test_dlc_chunked_reading(tmp_path: Path) -> None:
     """Test that DLC upload uses async file I/O with chunked reading."""
-    import aiofiles
-
-    # Create a test file
-    test_file = Path("/tmp/test_dlc_read.dlc")
+    # Create a test file using tmp_path for portability
+    test_file = tmp_path / "test_dlc_read.dlc"
     test_data = b"A" * 1000  # 1KB test file
     test_file.write_bytes(test_data)
 
-    try:
-        # Verify the file can be read in chunks using aiofiles
-        async with aiofiles.open(test_file, "rb") as f:
-            chunks_read = 0
-            total_bytes = 0
-            while True:
-                chunk = await f.read(20)  # FILE_CHUNK_SIZE
-                if not chunk:
-                    break
-                chunks_read += 1
-                total_bytes += len(chunk)
-                assert len(chunk) <= 20
+    # Verify the file can be read in chunks using aiofiles
+    async with aiofiles.open(test_file, "rb") as f:
+        chunks_read = 0
+        total_bytes = 0
+        while True:
+            chunk = await f.read(FILE_CHUNK_SIZE)
+            if not chunk:
+                break
+            chunks_read += 1
+            total_bytes += len(chunk)
+            assert len(chunk) <= FILE_CHUNK_SIZE
 
-            # 1000 bytes / 20 bytes per chunk = 50 chunks
-            assert chunks_read == 50, f"Expected 50 chunks, got {chunks_read}"
-            assert total_bytes == 1000, f"Expected 1000 bytes, got {total_bytes}"
-
-    finally:
-        test_file.unlink(missing_ok=True)
+        # 1000 bytes / 20 bytes per chunk = 50 chunks
+        expected_chunks = 1000 // FILE_CHUNK_SIZE
+        assert chunks_read == expected_chunks, f"Expected {expected_chunks} chunks, got {chunks_read}"
+        assert total_bytes == 1000, f"Expected 1000 bytes, got {total_bytes}"
 
 
 def test_cache_memory_efficiency() -> None:
