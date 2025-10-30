@@ -612,9 +612,15 @@ async def websocket_dlc_progress(websocket: WebSocket) -> None:
     logger.info("DLC progress WebSocket client connected")
     
     try:
-        # Keep connection alive
+        # Keep connection alive by waiting for client messages or pings
+        # This avoids unnecessary CPU wake-ups every second
         while True:
-            await asyncio.sleep(1)
+            try:
+                # Wait for any message from client (including pings) with 60s timeout
+                await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
+            except asyncio.TimeoutError:
+                # Send a ping to check if connection is still alive
+                await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
         logger.info("DLC progress WebSocket client disconnected")
         if websocket in dlc_progress_clients:

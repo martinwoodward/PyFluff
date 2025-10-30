@@ -34,6 +34,7 @@ class DLCManager:
         self._transfer_complete = asyncio.Event()
         self._transfer_error: str | None = None
         self._progress_callback: ProgressCallback = None
+        self._last_progress_percent: float = 0.0
 
     def _file_transfer_callback(self, data: bytes) -> None:
         """Handle file transfer status notifications."""
@@ -104,6 +105,7 @@ class DLCManager:
         self._transfer_ready.clear()
         self._transfer_complete.clear()
         self._transfer_error = None
+        self._last_progress_percent = 0.0
 
         # Add transfer callback
         self.furby.add_gp_callback(self._file_transfer_callback)
@@ -145,15 +147,16 @@ class DLCManager:
                 # NOTE: This value may require calibration for different Furby devices or BLE implementations.
                 await asyncio.sleep(0.002)
 
-                # Progress updates
-                if chunk_count % 50 == 0:  # Update every 50 chunks
-                    progress = (offset / file_size) * 100
+                # Progress updates (every 5% of file size for consistent UX)
+                progress = (offset / file_size) * 100
+                if progress - self._last_progress_percent >= 5 or offset == file_size:
                     logger.debug(f"Upload progress: {progress:.1f}%")
                     if self._progress_callback:
                         await self._progress_callback(
                             offset, file_size, 
                             f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)"
                         )
+                    self._last_progress_percent = progress
 
             logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
             if self._progress_callback:
