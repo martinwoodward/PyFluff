@@ -483,8 +483,21 @@ document.getElementById('btn-flash-activate').addEventListener('click', async ()
         return;
     }
 
+    const file = fileInput.files[0];
+    // Validate file extension (.dlc or .DLC)
+    if (!/\.dlc$/i.test(file.name)) {
+        log('Invalid file type. Please select a .dlc file.', 'error');
+        return;
+    }
+    // Validate file size (<= 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        log('File is too large. Maximum allowed size is 10MB.', 'error');
+        return;
+    }
+
     const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
+    formData.append('file', file);
 
     try {
         // Connect to WebSocket for progress updates
