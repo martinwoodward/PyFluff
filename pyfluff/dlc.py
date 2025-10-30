@@ -53,7 +53,7 @@ class DLCManager:
                 self._transfer_complete.set()
             elif mode == FileTransferMode.FILE_TRANSFER_TIMEOUT:
                 self._transfer_error = "File transfer timeout"
-                self._transfer_complete.set()
+                self._transfer_complete.set()  # Must set event to unblock the wait
 
         except ValueError:
             logger.warning(f"Unknown file transfer mode: {data[1]}")
@@ -141,7 +141,8 @@ class DLCManager:
                 chunk_count += 1
 
                 # Small delay to prevent overwhelming Furby
-                await asyncio.sleep(0.005)
+                # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout
+                await asyncio.sleep(0.002)
 
                 # Progress updates
                 if chunk_count % 50 == 0:  # Update every 50 chunks
@@ -248,13 +249,15 @@ class DLCManager:
                 if progress_callback:
                     await progress_callback(0, 0, f"Deleting existing DLC in slot {slot}...")
                 await self.delete_dlc(slot)
-                await asyncio.sleep(0.5)  # Give Furby time to process
+                # Increased delay to give Furby more time to process deletion
+                await asyncio.sleep(2.0)
 
             # Step 2: Upload DLC file
             if progress_callback:
                 await progress_callback(0, 0, "Starting DLC upload...")
             await self.upload_dlc(dlc_path, slot, progress_callback=progress_callback)
-            await asyncio.sleep(1.0)  # Give Furby time to finalize
+            # Increased delay to give Furby more time to finalize the uploaded file
+            await asyncio.sleep(2.0)
 
             # Step 3: Load DLC
             if progress_callback:
