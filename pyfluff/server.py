@@ -6,6 +6,7 @@ Provides HTTP API and WebSocket support for controlling Furby Connect.
 
 import asyncio
 import logging
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -451,8 +452,6 @@ async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
     fb = get_furby()
 
     # Save uploaded file temporarily
-    import tempfile
-
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dlc") as tmp:
         content = await file.read()
         tmp.write(content)
@@ -523,12 +522,21 @@ async def flash_and_activate(
     4. Activate the DLC
     
     Progress updates are sent via WebSocket to /ws/dlc endpoint.
+    
+    Args:
+        file: UploadFile containing the DLC file to flash
+        slot: DLC slot number (0-2, default: 2)
+        delete_first: Whether to delete existing DLC in slot first (default: True)
+        
+    Returns:
+        CommandResponse with success status and message
+        
+    Raises:
+        HTTPException: If not connected to Furby or upload fails
     """
     fb = get_furby()
 
     # Save uploaded file temporarily
-    import tempfile
-
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dlc") as tmp:
         content = await file.read()
         tmp.write(content)
