@@ -3,7 +3,8 @@ Pydantic models for data validation and API schemas.
 """
 
 from typing import Any
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AntennaColor(BaseModel):
@@ -27,7 +28,12 @@ class ActionList(BaseModel):
     """List of actions to execute in sequence"""
 
     actions: list[ActionSequence] = Field(description="List of actions to execute")
-    delay: float = Field(default=2.0, ge=0.1, le=30.0, description="Delay between actions in seconds (default: 2.0)")
+    delay: float = Field(
+        default=2.0,
+        ge=0.1,
+        le=30.0,
+        description="Delay between actions in seconds (default: 2.0)",
+    )
 
 
 class MoodUpdate(BaseModel):
@@ -61,8 +67,12 @@ class ConnectRequest(BaseModel):
     """Request to connect to a Furby"""
 
     address: str | None = Field(None, description="MAC address to connect to directly (optional)")
-    timeout: float = Field(15.0, ge=1.0, le=60.0, description="Connection timeout per attempt in seconds")
-    retries: int = Field(3, ge=1, le=10, description="Number of connection attempts (useful for F2F mode)")
+    timeout: float = Field(
+        15.0, ge=1.0, le=60.0, description="Connection timeout per attempt in seconds"
+    )
+    retries: int = Field(
+        3, ge=1, le=10, description="Number of connection attempts (useful for F2F mode)"
+    )
 
 
 class FurbyStatus(BaseModel):
@@ -102,13 +112,15 @@ class KnownFurby(BaseModel):
     device_name: str | None = Field(None, description="BLE device name")
     last_seen: float = Field(description="Unix timestamp of last connection")
     firmware_revision: str | None = Field(None, description="Firmware version if known")
-    
+
     model_config = ConfigDict(extra="allow")
 
 
 class KnownFurbiesConfig(BaseModel):
     """Configuration file for known Furbies"""
 
-    furbies: dict[str, KnownFurby] = Field(default_factory=dict, description="Map of MAC address to KnownFurby")
-    
+    furbies: dict[str, KnownFurby] = Field(
+        default_factory=dict, description="Map of MAC address to KnownFurby"
+    )
+
     model_config = ConfigDict(extra="allow")

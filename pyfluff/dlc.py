@@ -10,6 +10,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+import aiofiles
+
 from pyfluff.furby import FurbyConnect
 from pyfluff.protocol import FILE_CHUNK_SIZE, FileTransferMode, FurbyProtocol
 
@@ -124,15 +126,11 @@ class DLCManager:
 
             # Wait for ready signal
             try:
-                await asyncio.wait_for(
-                    self._transfer_ready.wait(), timeout=10.0
-                )
+                await asyncio.wait_for(self._transfer_ready.wait(), timeout=10.0)
             except TimeoutError:
-                raise RuntimeError(
-                    "Furby did not respond to DLC upload announcement"
-                ) from None
+                raise RuntimeError("Furby did not respond to DLC upload announcement") from None
 
-            # Upload file in chunks
+            # Upload file in chunks using async file I/O
             logger.info("Furby ready, uploading data...")
             if self._progress_callback:
                 await self._progress_callback(0, file_size, "Uploading data...")
@@ -140,11 +138,14 @@ class DLCManager:
             offset = 0
             chunk_count = 0
 
-            while offset < file_size:
-                chunk = dlc_data[offset : offset + FILE_CHUNK_SIZE]
-                await self.furby._write_file(chunk)
-                offset += len(chunk)
-                chunk_count += 1
+            async with aiofiles.open(dlc_path, "rb") as f:
+                while True:
+                    chunk = await f.read(FILE_CHUNK_SIZE)
+                    if not chunk:
+                        break
+
+                    await self.furby._write_file(chunk)
+                    chunk_count += 1
 
                 # Small delay to prevent overwhelming Furby
                 # This value may require calibration for different Furby
@@ -160,8 +161,9 @@ class DLCManager:
                     logger.debug(f"Upload progress: {progress:.1f}%")
                     if self._progress_callback:
                         await self._progress_callback(
-                            offset, file_size,
-                            f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)"
+                            offset,
+                            file_size,
+                            f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)",
                         )
                     self._last_progress_percent = progress
 
@@ -173,9 +175,7 @@ class DLCManager:
 
             # Wait for transfer complete
             try:
-                await asyncio.wait_for(
-                    self._transfer_complete.wait(), timeout=timeout
-                )
+                await asyncio.wait_for(self._transfer_complete.wait(), timeout=timeout)
             except TimeoutError:
                 raise RuntimeError("Timeout waiting for upload confirmation") from None
 

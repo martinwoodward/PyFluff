@@ -9,6 +9,9 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 
+# Import FurbyCache with TYPE_CHECKING to avoid circular imports
+from typing import TYPE_CHECKING
+
 from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
 
@@ -22,8 +25,6 @@ from pyfluff.protocol import (
     MoodMeterType,
 )
 
-# Import FurbyCache with TYPE_CHECKING to avoid circular imports
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pyfluff.furby_cache import FurbyCache
 
@@ -51,6 +52,7 @@ class FurbyConnect:
         self._idle_task: asyncio.Task[None] | None = None
         self._gp_callbacks: list[Callable[[bytes], None]] = []
         self._nordic_callbacks: list[Callable[[bytes], None]] = []
+        self._device_info_cache: FurbyInfo | None = None
 
     @property
     def connected(self) -> bool:
@@ -59,9 +61,7 @@ class FurbyConnect:
 
     @staticmethod
     async def discover(
-        timeout: float = 10.0, 
-        show_all: bool = False,
-        cache: "FurbyCache | None" = None
+        timeout: float = 10.0, show_all: bool = False, cache: "FurbyCache | None" = None
     ) -> list[BLEDevice]:
         """
         Discover nearby Furby Connect devices.
@@ -74,34 +74,36 @@ class FurbyConnect:
         Returns:
             List of discovered Furby devices (or all devices if show_all=True)
         """
-        logger.info(f"Scanning for {'all BLE' if show_all else 'Furby'} devices (timeout: {timeout}s)...")
+        logger.info(
+            f"Scanning for {'all BLE' if show_all else 'Furby'} devices "
+            f"(timeout: {timeout}s)..."
+        )
         devices = await BleakScanner.discover(timeout=timeout)
-        
+
         if show_all:
             logger.info(f"Found {len(devices)} total BLE device(s)")
             return devices
-        
+
         furbies = [d for d in devices if d.name and FURBY_NAME in d.name]
         logger.info(f"Found {len(furbies)} Furby device(s)")
-        
+
         # Update cache with discovered Furbies
         if cache is not None:
             for device in furbies:
-                cache.add_or_update(
-                    address=device.address,
-                    device_name=device.name
-                )
+                cache.add_or_update(address=device.address, device_name=device.name)
                 logger.debug(f"Updated cache for {device.address}")
-        
+
         if len(furbies) == 0:
             logger.warning("No Furbies found. They may be in F2F mode. Try:")
             logger.warning("  1. Use discover(show_all=True) to see all BLE devices")
             logger.warning("  2. Connect directly by MAC address if known")
             logger.warning("  3. Wake Furby from F2F mode by pressing its sensors")
-        
+
         return furbies
 
-    async def connect(self, address: str | None = None, timeout: float = 10.0, retries: int = 3) -> None:
+    async def connect(
+        self, address: str | None = None, timeout: float = 10.0, retries: int = 3
+    ) -> None:
         """
         Connect to a Furby device.
 
@@ -124,19 +126,19 @@ class FurbyConnect:
         if address is not None:
             logger.info(f"Connecting directly to Furby at {address}...")
             logger.debug(f"Using {retries} retries with {timeout}s timeout per attempt")
-            
+
             # Try multiple connection attempts (helpful for F2F mode)
             last_error = None
             for attempt in range(retries):
                 if attempt > 0:
                     logger.info(f"Connection attempt {attempt + 1} of {retries}...")
                     await asyncio.sleep(1)  # Brief delay between retries
-                
+
                 try:
                     self.client = BleakClient(address, timeout=timeout)
                     await self.client.connect()
                     self._connected = True
-                    
+
                     # Create a pseudo-device object for later reference
                     # Bleak doesn't expose the device object after connection,
                     # so we create a minimal one with the address
@@ -144,31 +146,34 @@ class FurbyConnect:
                         def __init__(self, addr):
                             self.address = addr
                             self.name = "Furby"  # Default name
-                    
+
                     if not self.device:
                         self.device = SimpleDevice(address)
-                    
+
                     logger.info(f"Connected successfully on attempt {attempt + 1}")
-                    
+
                     # Subscribe to notifications
                     await self._subscribe_notifications()
-                    
+
                     # Start idle keepalive
                     self._start_idle()
-                    
+
                     return  # Success!
-                    
+
                 except Exception as e:
                     last_error = e
                     logger.debug(f"Attempt {attempt + 1} failed: {e}")
                     if self.client:
                         try:
                             await self.client.disconnect()
-                        except:
-                            pass
+                        except Exception as disconnect_error:
+                            logger.warning(
+                                f"Error during disconnect after failed connection "
+                                f"attempt: {disconnect_error}"
+                            )
                         self.client = None
                     self._connected = False
-            
+
             # All retries failed
             raise RuntimeError(
                 f"Failed to connect to Furby at {address} after {retries} attempts. "
@@ -177,12 +182,15 @@ class FurbyConnect:
                 f"2) Try waking Furby by touching sensors. "
                 f"3) Verify MAC address is correct."
             )
-            
+
         # Discover device if not provided
         elif self.device is None:
             devices = await self.discover(timeout)
             if not devices:
-                raise RuntimeError("No Furby devices found. Try connecting by MAC address if Furby is in F2F mode.")
+                raise RuntimeError(
+                    "No Furby devices found. "
+                    "Try connecting by MAC address if Furby is in F2F mode."
+                )
             self.device = devices[0]
             logger.info(f"Selected Furby: {self.device.address}")
             self.client = BleakClient(self.device, timeout=timeout)
@@ -318,9 +326,7 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
-        await self.client.write_gatt_char(
-            FurbyCharacteristic.NORDIC_WRITE, data, response=False
-        )
+        await self.client.write_gatt_char(FurbyCharacteristic.NORDIC_WRITE, data, response=False)
         logger.debug(f"Nordic write: {data.hex()}")
 
     async def enable_nordic_packet_ack(self, enabled: bool = True) -> None:
@@ -343,9 +349,7 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
-        await self.client.write_gatt_char(
-            FurbyCharacteristic.FILE_WRITE, data, response=False
-        )
+        await self.client.write_gatt_char(FurbyCharacteristic.FILE_WRITE, data, response=False)
         logger.debug(f"File write: {data.hex()}")
 
     # High-level command methods
@@ -363,9 +367,7 @@ class FurbyConnect:
         await self._write_gp(cmd)
         logger.info(f"Set antenna color to RGB({red}, {green}, {blue})")
 
-    async def trigger_action(
-        self, input: int, index: int, subindex: int, specific: int
-    ) -> None:
+    async def trigger_action(self, input: int, index: int, subindex: int, specific: int) -> None:
         """
         Trigger a specific Furby action.
 
@@ -425,9 +427,12 @@ class FurbyConnect:
         await self._write_gp(cmd)
         logger.info(f"Set mood {mood_type.name} to {value} (absolute={set_absolute})")
 
-    async def get_device_info(self) -> FurbyInfo:
+    async def get_device_info(self, use_cache: bool = True) -> FurbyInfo:
         """
         Get device information from Furby.
+
+        Args:
+            use_cache: If True, return cached info if available (default: True)
 
         Returns:
             FurbyInfo with device details
@@ -435,45 +440,46 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
+        # Return cached info if available and requested
+        if use_cache and self._device_info_cache is not None:
+            return self._device_info_cache
+
         info = FurbyInfo()
 
-        # Read device information characteristics
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.MANUFACTURER_NAME)
-            info.manufacturer = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read manufacturer: {e}")
+        # Read all characteristics concurrently for better performance
+        characteristics = [
+            (FurbyCharacteristic.MANUFACTURER_NAME, "manufacturer"),
+            (FurbyCharacteristic.MODEL_NUMBER, "model_number"),
+            (FurbyCharacteristic.SERIAL_NUMBER, "serial_number"),
+            (FurbyCharacteristic.HARDWARE_REVISION, "hardware_revision"),
+            (FurbyCharacteristic.FIRMWARE_REVISION, "firmware_revision"),
+            (FurbyCharacteristic.SOFTWARE_REVISION, "software_revision"),
+        ]
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.MODEL_NUMBER)
-            info.model_number = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read model number: {e}")
+        async def read_characteristic(char_uuid: str, field_name: str) -> tuple[str, str | None]:
+            """Read a single characteristic and return the field name and value."""
+            try:
+                data = await self.client.read_gatt_char(char_uuid)
+                return field_name, data.decode("utf-8").strip("\x00")
+            except Exception as e:
+                logger.warning(f"Could not read {field_name}: {e}")
+                return field_name, None
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.SERIAL_NUMBER)
-            info.serial_number = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read serial number: {e}")
+        # Read all characteristics concurrently
+        results = await asyncio.gather(
+            *[read_characteristic(uuid, name) for uuid, name in characteristics],
+            return_exceptions=True,
+        )
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.HARDWARE_REVISION)
-            info.hardware_revision = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read hardware revision: {e}")
+        # Set the results on the info object
+        for result in results:
+            if isinstance(result, tuple):
+                field_name, value = result
+                if value is not None:
+                    setattr(info, field_name, value)
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.FIRMWARE_REVISION)
-            info.firmware_revision = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read firmware revision: {e}")
-
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.SOFTWARE_REVISION)
-            info.software_revision = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read software revision: {e}")
-
+        # Cache the result
+        self._device_info_cache = info
         return info
 
     async def sensor_stream(self) -> AsyncIterator[SensorData]:

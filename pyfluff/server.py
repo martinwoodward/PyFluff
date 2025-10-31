@@ -179,10 +179,7 @@ async def get_known_furbies() -> dict:
         return {"furbies": [], "count": 0}
 
     furbies = furby_cache.get_all()
-    return {
-        "furbies": [f.model_dump() for f in furbies],
-        "count": len(furbies)
-    }
+    return {"furbies": [f.model_dump() for f in furbies], "count": len(furbies)}
 
 
 @app.delete("/known-furbies/{address}", response_model=CommandResponse)
@@ -226,7 +223,9 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
         if address:
             await broadcast_log(f"Connecting to Furby at {address}...", "info")
             if retries > 1:
-                await broadcast_log(f"Using {retries} connection attempts (F2F mode support)", "info")
+                await broadcast_log(
+                    f"Using {retries} connection attempts (F2F mode support)", "info"
+                )
         else:
             await broadcast_log("Scanning for Furby devices...", "info")
 
@@ -235,7 +234,11 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
         # Create custom logging handler to broadcast to WebSocket
         class WebSocketHandler(logging.Handler):
             def emit(self, record):
-                log_type = "error" if record.levelno >= logging.ERROR else "success" if "success" in record.getMessage().lower() else "info"
+                log_type = (
+                    "error"
+                    if record.levelno >= logging.ERROR
+                    else "success" if "success" in record.getMessage().lower() else "info"
+                )
                 # Use asyncio to schedule the broadcast
                 loop = asyncio.get_event_loop()
                 loop.create_task(broadcast_log(record.getMessage(), log_type))
@@ -258,7 +261,7 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
                     furby_cache.add_or_update(
                         address=furby.device.address,
                         device_name=furby.device.name,
-                        firmware_revision=info.firmware_revision
+                        firmware_revision=info.firmware_revision,
                     )
                     logger.info(f"Updated cache for {furby.device.address}")
                 except Exception as e:
@@ -276,7 +279,7 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
 
             # Flash antenna red twice
             try:
-                for i in range(2):
+                for _i in range(2):
                     await furby.set_antenna_color(255, 0, 0)
                     await asyncio.sleep(0.3)
                     await furby.set_antenna_color(0, 0, 0)
@@ -292,7 +295,7 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
     except Exception as e:
         logger.error(f"Connection failed: {e}")
         await broadcast_log(f"Connection failed: {e}", "error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/disconnect", response_model=CommandResponse)
@@ -317,13 +320,15 @@ async def set_antenna(color: AntennaColor) -> CommandResponse:
         )
     except Exception as e:
         logger.error(f"Failed to set antenna color: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/action", response_model=CommandResponse)
 async def trigger_action(action: ActionSequence) -> CommandResponse:
     """Trigger a Furby action sequence."""
-    logger.info(f"Triggering action: {action.input}/{action.index}/{action.subindex}/{action.specific}")
+    logger.info(
+        f"Triggering action: {action.input}/{action.index}/" f"{action.subindex}/{action.specific}"
+    )
     fb = get_furby()
     try:
         await fb.trigger_action(action.input, action.index, action.subindex, action.specific)
@@ -331,24 +336,29 @@ async def trigger_action(action: ActionSequence) -> CommandResponse:
         return CommandResponse(success=True, message="Action triggered")
     except Exception as e:
         logger.error(f"Failed to trigger action: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/actions/sequence", response_model=CommandResponse)
 async def trigger_action_sequence(action_list: ActionList) -> CommandResponse:
     """
     Trigger a sequence of Furby actions with delays between them.
-    
+
     This endpoint executes multiple actions one after another, waiting for the
     specified delay between each action to allow Furby to complete animations/sounds.
     """
     fb = get_furby()
     total_actions = len(action_list.actions)
-    logger.info(f"Starting action sequence with {total_actions} actions (delay: {action_list.delay}s)")
+    logger.info(
+        f"Starting action sequence with {total_actions} actions " f"(delay: {action_list.delay}s)"
+    )
 
     try:
         for i, action in enumerate(action_list.actions, 1):
-            logger.info(f"Triggering action {i}/{total_actions}: {action.input}/{action.index}/{action.subindex}/{action.specific}")
+            logger.info(
+                f"Triggering action {i}/{total_actions}: "
+                f"{action.input}/{action.index}/{action.subindex}/{action.specific}"
+            )
             await fb.trigger_action(action.input, action.index, action.subindex, action.specific)
 
             # Wait before next action (except after the last one)
@@ -360,11 +370,11 @@ async def trigger_action_sequence(action_list: ActionList) -> CommandResponse:
         return CommandResponse(
             success=True,
             message=f"Sequence completed: {total_actions} actions",
-            data={"actions_executed": total_actions, "delay_used": action_list.delay}
+            data={"actions_executed": total_actions, "delay_used": action_list.delay},
         )
     except Exception as e:
         logger.error(f"Failed to execute action sequence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/lcd/{state}", response_model=CommandResponse)
@@ -375,12 +385,10 @@ async def set_lcd(state: bool) -> CommandResponse:
     try:
         await fb.set_lcd_backlight(state)
         logger.info("LCD state changed successfully")
-        return CommandResponse(
-            success=True, message=f"LCD backlight {'on' if state else 'off'}"
-        )
+        return CommandResponse(success=True, message=f"LCD backlight {'on' if state else 'off'}")
     except Exception as e:
         logger.error(f"Failed to set LCD: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/debug", response_model=CommandResponse)
@@ -410,7 +418,7 @@ async def set_name(name_id: int) -> CommandResponse:
             furby_cache.update_name(
                 address=fb.device.address,
                 name=f"Name ID {name_id}",  # Could be enhanced with actual name lookup
-                name_id=name_id
+                name_id=name_id,
             )
             logger.info(f"Updated name in cache for {fb.device.address}")
         except Exception as e:
@@ -467,7 +475,7 @@ async def upload_dlc(
         )
     except Exception as e:
         logger.error(f"DLC upload failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
         tmp_path.unlink(missing_ok=True)
 
@@ -557,7 +565,7 @@ async def flash_and_activate(
                 "bytes_done": bytes_done,
                 "total_bytes": total_bytes,
                 "message": message,
-                "percentage": (bytes_done / total_bytes * 100) if total_bytes > 0 else 0
+                "percentage": (bytes_done / total_bytes * 100) if total_bytes > 0 else 0,
             }
             # Broadcast to all connected DLC WebSocket clients
             await broadcast_dlc_progress(progress_data)
@@ -576,13 +584,15 @@ async def flash_and_activate(
     except Exception as e:
         logger.error(f"DLC flash and activate failed: {e}")
         # Send error to WebSocket clients
-        await broadcast_dlc_progress({
-            "bytes_done": 0,
-            "total_bytes": 0,
-            "message": f"Error: {str(e)}",
-            "percentage": 0,
-            "error": True
-        })
+        await broadcast_dlc_progress(
+            {
+                "bytes_done": 0,
+                "total_bytes": 0,
+                "message": f"Error: {str(e)}",
+                "percentage": 0,
+                "error": True,
+            }
+        )
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         tmp_path.unlink(missing_ok=True)
