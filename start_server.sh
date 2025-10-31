@@ -113,7 +113,7 @@ source venv/bin/activate
 # Check if dependencies are installed
 echo ""
 echo "Checking dependencies..."
-if ! python -c "import pyfluff" 2>/dev/null; then
+if ! python3 -c "import pyfluff" 2>/dev/null; then
     echo "Warning: PyFluff package not found"
     echo "Installing dependencies..."
     pip install --upgrade pip
