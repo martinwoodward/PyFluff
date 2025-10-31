@@ -623,7 +623,7 @@ async def websocket_dlc_progress(websocket: WebSocket) -> None:
             try:
                 # Wait for any message from client (including pings) with 60s timeout
                 await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 # Send a ping to check if connection is still alive
                 await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
