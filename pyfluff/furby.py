@@ -61,9 +61,7 @@ class FurbyConnect:
 
     @staticmethod
     async def discover(
-        timeout: float = 10.0,
-        show_all: bool = False,
-        cache: "FurbyCache | None" = None
+        timeout: float = 10.0, show_all: bool = False, cache: "FurbyCache | None" = None
     ) -> list[BLEDevice]:
         """
         Discover nearby Furby Connect devices.
@@ -169,7 +167,10 @@ class FurbyConnect:
                         try:
                             await self.client.disconnect()
                         except Exception as disconnect_error:
-                            logger.warning(f"Error during disconnect after failed connection attempt: {disconnect_error}")
+                            logger.warning(
+                                f"Error during disconnect after failed connection "
+                                f"attempt: {disconnect_error}"
+                            )
                         self.client = None
                     self._connected = False
 
@@ -467,7 +468,7 @@ class FurbyConnect:
         # Read all characteristics concurrently
         results = await asyncio.gather(
             *[read_characteristic(uuid, name) for uuid, name in characteristics],
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Set the results on the info object

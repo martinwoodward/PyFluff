@@ -6,8 +6,8 @@ Provides HTTP API and WebSocket support for controlling Furby Connect.
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
 import tempfile
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -327,8 +327,7 @@ async def set_antenna(color: AntennaColor) -> CommandResponse:
 async def trigger_action(action: ActionSequence) -> CommandResponse:
     """Trigger a Furby action sequence."""
     logger.info(
-        f"Triggering action: {action.input}/{action.index}/"
-        f"{action.subindex}/{action.specific}"
+        f"Triggering action: {action.input}/{action.index}/" f"{action.subindex}/{action.specific}"
     )
     fb = get_furby()
     try:
@@ -351,8 +350,7 @@ async def trigger_action_sequence(action_list: ActionList) -> CommandResponse:
     fb = get_furby()
     total_actions = len(action_list.actions)
     logger.info(
-        f"Starting action sequence with {total_actions} actions "
-        f"(delay: {action_list.delay}s)"
+        f"Starting action sequence with {total_actions} actions " f"(delay: {action_list.delay}s)"
     )
 
     try:
@@ -622,7 +620,7 @@ async def websocket_dlc_progress(websocket: WebSocket) -> None:
             try:
                 # Wait for any message from client (including pings) with 60s timeout
                 await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send a ping to check if connection is still alive
                 await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:

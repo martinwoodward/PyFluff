@@ -7,8 +7,8 @@ uploaded to Furby.
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Callable, Awaitable
 
 import aiofiles
 
@@ -145,7 +145,8 @@ class DLCManager:
 
                 # Small delay to prevent overwhelming Furby
                 # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout.
-                # NOTE: This value may require calibration for different Furby devices or BLE implementations.
+                # NOTE: This value may require calibration for different Furby devices
+                # or BLE implementations.
                 await asyncio.sleep(0.002)
 
                 # Progress updates (every 5% of file size for consistent UX)

@@ -81,6 +81,7 @@ class FurbyCache:
             with open(self.cache_file, "w") as f:
                 json.dump(self.config.model_dump(), f, indent=2)
             logger.debug(f"Saved cache with {len(self.config.furbies)} Furbies")
+            self._save_pending = False
         except Exception as e:
             logger.error(f"Failed to save cache file: {e}")
 

@@ -66,9 +66,7 @@ class SensorData(BaseModel):
 class ConnectRequest(BaseModel):
     """Request to connect to a Furby"""
 
-    address: str | None = Field(
-        None, description="MAC address to connect to directly (optional)"
-    )
+    address: str | None = Field(None, description="MAC address to connect to directly (optional)")
     timeout: float = Field(
         15.0, ge=1.0, le=60.0, description="Connection timeout per attempt in seconds"
     )

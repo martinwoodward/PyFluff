@@ -82,10 +82,11 @@ select = [
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
 ]
-ignore = []
+ignore = ["B008"]  # Allow function calls in argument defaults (required for typer)
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
+"pyfluff/server.py" = ["B904"]  # Server exception handling patterns
 
 [tool.mypy]
 python_version = "3.11"
