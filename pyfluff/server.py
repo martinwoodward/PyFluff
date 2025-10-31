@@ -448,7 +448,7 @@ async def set_mood(mood: MoodUpdate) -> CommandResponse:
 
 @app.post("/dlc/upload", response_model=CommandResponse)
 async def upload_dlc(
-    file: UploadFile, slot: int = 2, chunk_delay: float = 0.005
+    file: UploadFile, slot: int = 2, chunk_delay: float = 0.020
 ) -> CommandResponse:
     """Upload a DLC file to Furby."""
     fb = get_furby()
@@ -513,7 +513,7 @@ async def flash_and_activate(
     file: UploadFile,
     slot: int = 2,
     delete_first: bool = True,
-    chunk_delay: float = 0.005,
+    chunk_delay: float = 0.020,
 ) -> CommandResponse:
     """
     Complete DLC workflow: Upload, load, and activate in one call.
@@ -530,8 +530,9 @@ async def flash_and_activate(
         file: UploadFile containing the DLC file to flash
         slot: DLC slot number (0-2, default: 2)
         delete_first: Whether to delete existing DLC in slot first (default: True)
-        chunk_delay: Delay in seconds between chunks (default: 0.005).
-                    Increase (e.g., 0.01) if you experience FILE_TRANSFER_TIMEOUT errors.
+        chunk_delay: Delay in seconds between chunks (default: 0.020 = 20ms).
+                     Conservative default to prevent FILE_TRANSFER_TIMEOUT errors.
+                     Can be decreased to 0.005-0.010 for faster uploads if reliable.
 
     Returns:
         CommandResponse with success status and message
@@ -623,7 +624,7 @@ async def websocket_dlc_progress(websocket: WebSocket) -> None:
             try:
                 # Wait for any message from client (including pings) with 60s timeout
                 await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send a ping to check if connection is still alive
                 await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:

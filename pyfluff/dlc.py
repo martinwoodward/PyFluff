@@ -66,7 +66,7 @@ class DLCManager:
         timeout: float = 300.0,
         enable_nordic_ack: bool = True,
         progress_callback: ProgressCallback = None,
-        chunk_delay: float = 0.005
+        chunk_delay: float = 0.020
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -77,9 +77,9 @@ class DLCManager:
             timeout: Upload timeout in seconds (default: 300 = 5 minutes)
             enable_nordic_ack: Enable Nordic packet ACK for monitoring (default: True)
             progress_callback: Optional async callback(bytes_uploaded, total_bytes, status_message)
-            chunk_delay: Delay in seconds between chunks (default: 0.005).
-                        Increase if you experience FILE_TRANSFER_TIMEOUT errors.
-                        Decrease for faster uploads if your Furby can handle it.
+            chunk_delay: Delay in seconds between chunks (default: 0.020 = 20ms).
+                        This conservative default prevents FILE_TRANSFER_TIMEOUT errors.
+                        Can be decreased to 0.005-0.010 for faster uploads if reliable.
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist
@@ -238,7 +238,7 @@ class DLCManager:
         slot: int = 2,
         delete_first: bool = True,
         progress_callback: ProgressCallback = None,
-        chunk_delay: float = 0.005
+        chunk_delay: float = 0.020
     ) -> None:
         """
         Complete workflow: Upload, load, and activate a DLC file in one call.
@@ -252,8 +252,8 @@ class DLCManager:
             slot: Slot number to use (default: 2)
             delete_first: Delete existing DLC in slot first (default: True)
             progress_callback: Optional async callback(bytes_uploaded, total_bytes, status_message)
-            chunk_delay: Delay in seconds between chunks (default: 0.005).
-                        Increase if you experience FILE_TRANSFER_TIMEOUT errors.
+            chunk_delay: Delay in seconds between chunks (default: 0.020 = 20ms).
+                        This conservative default prevents FILE_TRANSFER_TIMEOUT errors.
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist

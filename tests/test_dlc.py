@@ -89,7 +89,7 @@ async def test_upload_dlc_chunk_delay_parameter(dlc_manager, tmp_path):
         # Simulate READY_TO_RECEIVE
         dlc_manager._transfer_ready.set()
         # Simulate FILE_RECEIVED_OK after all chunks
-        asyncio.get_event_loop().call_later(0.1, dlc_manager._transfer_complete.set)
+        asyncio.get_running_loop().call_later(0.1, dlc_manager._transfer_complete.set)
 
     dlc_manager.furby.add_gp_callback = MagicMock(side_effect=simulate_furby_response)
 
@@ -112,7 +112,7 @@ async def test_upload_dlc_chunk_delay_parameter(dlc_manager, tmp_path):
 
 @pytest.mark.asyncio
 async def test_upload_dlc_default_chunk_delay(dlc_manager, tmp_path):
-    """Test that default chunk_delay is 0.005 seconds."""
+    """Test that default chunk_delay is 0.020 seconds."""
     # Create a small test file
     test_file = tmp_path / "test.dlc"
     test_data = b"B" * 40  # 40 bytes = 2 chunks of 20 bytes
@@ -129,11 +129,11 @@ async def test_upload_dlc_default_chunk_delay(dlc_manager, tmp_path):
 
     def simulate_furby_response(callback):
         dlc_manager._transfer_ready.set()
-        asyncio.get_event_loop().call_later(0.1, dlc_manager._transfer_complete.set)
+        asyncio.get_running_loop().call_later(0.1, dlc_manager._transfer_complete.set)
 
     dlc_manager.furby.add_gp_callback = MagicMock(side_effect=simulate_furby_response)
 
-    # Test with default chunk_delay (should be 0.005)
+    # Test with default chunk_delay (should be 0.020)
     with patch("asyncio.sleep", side_effect=mock_sleep):
         with patch.object(dlc_manager.furby, "_gp_callbacks", []):
             try:
@@ -142,8 +142,8 @@ async def test_upload_dlc_default_chunk_delay(dlc_manager, tmp_path):
                 # Expected to timeout since we're mocking
                 pass
 
-    # Verify default chunk_delay of 0.005 was used
-    default_delay = 0.005
+    # Verify default chunk_delay of 0.020 was used
+    default_delay = 0.020
     chunk_sleep_calls = [call for call in sleep_calls if call == default_delay]
     assert len(chunk_sleep_calls) == 2, f"Expected 2 chunk delays, got {len(chunk_sleep_calls)}"
 
