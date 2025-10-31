@@ -1,6 +1,6 @@
 [Unit]
 Description=PyFluff - Furby Connect Controller
-Documentation=https://github.com/benbalter/PyFluff
+Documentation=https://github.com/yourusername/PyFluff
 After=network.target bluetooth.target
 
 [Service]
