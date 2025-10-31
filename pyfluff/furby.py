@@ -61,9 +61,7 @@ class FurbyConnect:
 
     @staticmethod
     async def discover(
-        timeout: float = 10.0,
-        show_all: bool = False,
-        cache: "FurbyCache | None" = None
+        timeout: float = 10.0, show_all: bool = False, cache: "FurbyCache | None" = None
     ) -> list[BLEDevice]:
         """
         Discover nearby Furby Connect devices.
@@ -92,10 +90,7 @@ class FurbyConnect:
         # Update cache with discovered Furbies
         if cache is not None:
             for device in furbies:
-                cache.add_or_update(
-                    address=device.address,
-                    device_name=device.name
-                )
+                cache.add_or_update(address=device.address, device_name=device.name)
                 logger.debug(f"Updated cache for {device.address}")
 
         if len(furbies) == 0:
@@ -172,7 +167,10 @@ class FurbyConnect:
                         try:
                             await self.client.disconnect()
                         except Exception as disconnect_error:
-                            logger.warning(f"Error during disconnect after failed connection attempt: {disconnect_error}")
+                            logger.warning(
+                                f"Error during disconnect after failed connection "
+                                f"attempt: {disconnect_error}"
+                            )
                         self.client = None
                     self._connected = False
 
@@ -328,9 +326,7 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
-        await self.client.write_gatt_char(
-            FurbyCharacteristic.NORDIC_WRITE, data, response=False
-        )
+        await self.client.write_gatt_char(FurbyCharacteristic.NORDIC_WRITE, data, response=False)
         logger.debug(f"Nordic write: {data.hex()}")
 
     async def enable_nordic_packet_ack(self, enabled: bool = True) -> None:
@@ -353,9 +349,7 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
-        await self.client.write_gatt_char(
-            FurbyCharacteristic.FILE_WRITE, data, response=False
-        )
+        await self.client.write_gatt_char(FurbyCharacteristic.FILE_WRITE, data, response=False)
         logger.debug(f"File write: {data.hex()}")
 
     # High-level command methods
@@ -373,9 +367,7 @@ class FurbyConnect:
         await self._write_gp(cmd)
         logger.info(f"Set antenna color to RGB({red}, {green}, {blue})")
 
-    async def trigger_action(
-        self, input: int, index: int, subindex: int, specific: int
-    ) -> None:
+    async def trigger_action(self, input: int, index: int, subindex: int, specific: int) -> None:
         """
         Trigger a specific Furby action.
 
@@ -476,7 +468,7 @@ class FurbyConnect:
         # Read all characteristics concurrently
         results = await asyncio.gather(
             *[read_characteristic(uuid, name) for uuid, name in characteristics],
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Set the results on the info object

@@ -159,7 +159,9 @@ async def test_dlc_chunked_reading(tmp_path: Path) -> None:
 
         # 1000 bytes / 20 bytes per chunk = 50 chunks
         expected_chunks = 1000 // FILE_CHUNK_SIZE
-        assert chunks_read == expected_chunks, f"Expected {expected_chunks} chunks, got {chunks_read}"
+        assert (
+            chunks_read == expected_chunks
+        ), f"Expected {expected_chunks} chunks, got {chunks_read}"
         assert total_bytes == 1000, f"Expected 1000 bytes, got {total_bytes}"
 
 

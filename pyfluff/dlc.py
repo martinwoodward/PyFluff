@@ -7,8 +7,8 @@ uploaded to Furby.
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Callable, Awaitable
 
 import aiofiles
 
@@ -62,12 +62,12 @@ class DLCManager:
             logger.warning(f"Unknown file transfer mode: {data[1]}")
 
     async def upload_dlc(
-        self, 
-        dlc_path: Path, 
-        slot: int = 2, 
+        self,
+        dlc_path: Path,
+        slot: int = 2,
         timeout: float = 300.0,
         enable_nordic_ack: bool = True,
-        progress_callback: ProgressCallback = None
+        progress_callback: ProgressCallback = None,
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -95,7 +95,7 @@ class DLCManager:
         filename = dlc_path.name
 
         logger.info(f"Uploading DLC: {filename} ({file_size} bytes) to slot {slot}")
-        
+
         if self._progress_callback:
             await self._progress_callback(0, file_size, f"Starting upload: {filename}")
 
@@ -122,19 +122,15 @@ class DLCManager:
 
             # Wait for ready signal
             try:
-                await asyncio.wait_for(
-                    self._transfer_ready.wait(), timeout=10.0
-                )
+                await asyncio.wait_for(self._transfer_ready.wait(), timeout=10.0)
             except TimeoutError:
-                raise RuntimeError(
-                    "Furby did not respond to DLC upload announcement"
-                ) from None
+                raise RuntimeError("Furby did not respond to DLC upload announcement") from None
 
             # Upload file in chunks using async file I/O
             logger.info("Furby ready, uploading data...")
             if self._progress_callback:
                 await self._progress_callback(0, file_size, "Uploading data...")
-            
+
             offset = 0
             chunk_count = 0
 
@@ -149,7 +145,8 @@ class DLCManager:
 
                 # Small delay to prevent overwhelming Furby
                 # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout.
-                # NOTE: This value may require calibration for different Furby devices or BLE implementations.
+                # NOTE: This value may require calibration for different Furby devices
+                # or BLE implementations.
                 await asyncio.sleep(0.002)
 
                 # Progress updates (every 5% of file size for consistent UX)
@@ -158,20 +155,21 @@ class DLCManager:
                     logger.debug(f"Upload progress: {progress:.1f}%")
                     if self._progress_callback:
                         await self._progress_callback(
-                            offset, file_size, 
-                            f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)"
+                            offset,
+                            file_size,
+                            f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)",
                         )
                     self._last_progress_percent = progress
 
             logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
             if self._progress_callback:
-                await self._progress_callback(file_size, file_size, "Waiting for Furby to confirm...")
+                await self._progress_callback(
+                    file_size, file_size, "Waiting for Furby to confirm..."
+                )
 
             # Wait for transfer complete
             try:
-                await asyncio.wait_for(
-                    self._transfer_complete.wait(), timeout=timeout
-                )
+                await asyncio.wait_for(self._transfer_complete.wait(), timeout=timeout)
             except TimeoutError:
                 raise RuntimeError("Timeout waiting for upload confirmation") from None
 
@@ -233,7 +231,7 @@ class DLCManager:
         dlc_path: Path,
         slot: int = 2,
         delete_first: bool = True,
-        progress_callback: ProgressCallback = None
+        progress_callback: ProgressCallback = None,
     ) -> None:
         """
         Complete workflow: Upload, load, and activate a DLC file in one call.

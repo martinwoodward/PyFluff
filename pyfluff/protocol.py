@@ -166,9 +166,7 @@ class FurbyProtocol:
         return bytes([GeneralPlusCommand.SET_ANTENNA_COLOR.value, red, green, blue])
 
     @staticmethod
-    def build_action_command(
-        input: int, index: int, subindex: int, specific: int
-    ) -> bytes:
+    def build_action_command(input: int, index: int, subindex: int, specific: int) -> bytes:
         """Build command to trigger specific action"""
         return bytes(
             [
@@ -197,23 +195,17 @@ class FurbyProtocol:
         return bytes([GeneralPlusCommand.SET_NAME.value, name_id])
 
     @staticmethod
-    def build_moodmeter_command(
-        action: int, mood_type: MoodMeterType, value: int
-    ) -> bytes:
+    def build_moodmeter_command(action: int, mood_type: MoodMeterType, value: int) -> bytes:
         """
         Build command to set mood meter.
         action: 1 = set value, 0 = increase value
         mood_type: MoodMeterType enum
         value: new value (action=1) or delta (action=0)
         """
-        return bytes(
-            [GeneralPlusCommand.SET_MOODMETER.value, action, mood_type.value, value]
-        )
+        return bytes([GeneralPlusCommand.SET_MOODMETER.value, action, mood_type.value, value])
 
     @staticmethod
-    def build_dlc_announce_command(
-        size: int, slot: int, filename: str
-    ) -> bytes:
+    def build_dlc_announce_command(size: int, slot: int, filename: str) -> bytes:
         """Build command to announce DLC upload"""
         # Size is 3 bytes (big-endian)
         size_bytes = bytes([(size >> 16) & 0xFF, (size >> 8) & 0xFF, size & 0xFF])
@@ -277,30 +269,134 @@ class FurbyProtocol:
 
 # Furby name database (129 names, IDs 0-128)
 FURBY_NAMES: dict[int, str] = {
-    0: "Ah-Bay", 1: "Ah-Boh", 2: "Ah-Boo", 3: "Ah-Dah", 4: "Ah-Doh",
-    5: "Ah-Doo", 6: "Ah-Kah", 7: "Ah-Koh", 8: "Ah-Tah", 9: "Ah-Toh",
-    10: "Bee-Bay", 11: "Bee-Boh", 12: "Bee-Boo", 13: "Bee-Dah", 14: "Bee-Doh",
-    15: "Bee-Doo", 16: "Bee-Kah", 17: "Bee-Koh", 18: "Bee-Tah", 19: "Bee-Toh",
-    20: "Dah-Bay", 21: "Dah-Boh", 22: "Dah-Boo", 23: "Dah-Dah", 24: "Dah-Doh",
-    25: "Dah-Doo", 26: "Dah-Kah", 27: "Dah-Koh", 28: "Dah-Tah", 29: "Dah-Toh",
-    30: "Day-Bay", 31: "Day-Boh", 32: "Day-Boo", 33: "Day-Dah", 34: "Day-Doh",
-    35: "Day-Doo", 36: "Day-Kah", 37: "Day-Koh", 38: "Day-Tah", 39: "Day-Toh",
-    40: "Dee-Bay", 41: "Dee-Boh", 42: "Dee-Boo", 43: "Dee-Dah", 44: "Dee-Doh",
-    45: "Dee-Doo", 46: "Dee-Kah", 47: "Dee-Koh", 48: "Dee-Tah", 49: "Dee-Toh",
-    50: "Doo-Bay", 51: "Doo-Boh", 52: "Doo-Boo", 53: "Doo-Dah", 54: "Doo-Doh",
-    55: "Doo-Doo", 56: "Doo-Kah", 57: "Doo-Koh", 58: "Doo-Tah", 59: "Doo-Toh",
-    60: "Kee-Bay", 61: "Kee-Boh", 62: "Kee-Boo", 63: "Kee-Dah", 64: "Kee-Doh",
-    65: "Kee-Doo", 66: "Kee-Kah", 67: "Kee-Koh", 68: "Kee-Tah", 69: "Kee-Toh",
-    70: "Loo-Bay", 71: "Loo-Boh", 72: "Loo-Boo", 73: "Loo-Dah", 74: "Loo-Doh",
-    75: "Loo-Doo", 76: "Loo-Kah", 77: "Loo-Koh", 78: "Loo-Tah", 79: "Loo-Toh",
-    80: "May-Bay", 81: "May-Boh", 82: "May-Boo", 83: "May-Dah", 84: "May-Doh",
-    85: "May-Doo", 86: "May-Kah", 87: "May-Koh", 88: "May-Tah", 89: "May-Toh",
-    90: "Noo-Bay", 91: "Noo-Boh", 92: "Noo-Boo", 93: "Noo-Dah", 94: "Noo-Doh",
-    95: "Noo-Doo", 96: "Noo-Kah", 97: "Noo-Koh", 98: "Noo-Tah", 99: "Noo-Toh",
-    100: "Tay-Bay", 101: "Tay-Boh", 102: "Tay-Boo", 103: "Tay-Dah", 104: "Tay-Doh",
-    105: "Tay-Doo", 106: "Tay-Kah", 107: "Tay-Koh", 108: "Tay-Toh",
-    109: "Toh-Bay", 110: "Toh-Boh", 111: "Toh-Boo", 112: "Toh-Dah", 113: "Toh-Doh",
-    114: "Toh-Doo", 115: "Toh-Kah", 116: "Toh-Koh", 117: "Toh-Tah", 118: "Toh-Toh",
-    119: "Way-Bay", 120: "Way-Boh", 121: "Way-Boo", 122: "Way-Dah", 123: "Way-Doh",
-    124: "Way-Doo", 125: "Way-Kah", 126: "Way-Koh", 127: "Way-Tah", 128: "Way-Toh",
+    0: "Ah-Bay",
+    1: "Ah-Boh",
+    2: "Ah-Boo",
+    3: "Ah-Dah",
+    4: "Ah-Doh",
+    5: "Ah-Doo",
+    6: "Ah-Kah",
+    7: "Ah-Koh",
+    8: "Ah-Tah",
+    9: "Ah-Toh",
+    10: "Bee-Bay",
+    11: "Bee-Boh",
+    12: "Bee-Boo",
+    13: "Bee-Dah",
+    14: "Bee-Doh",
+    15: "Bee-Doo",
+    16: "Bee-Kah",
+    17: "Bee-Koh",
+    18: "Bee-Tah",
+    19: "Bee-Toh",
+    20: "Dah-Bay",
+    21: "Dah-Boh",
+    22: "Dah-Boo",
+    23: "Dah-Dah",
+    24: "Dah-Doh",
+    25: "Dah-Doo",
+    26: "Dah-Kah",
+    27: "Dah-Koh",
+    28: "Dah-Tah",
+    29: "Dah-Toh",
+    30: "Day-Bay",
+    31: "Day-Boh",
+    32: "Day-Boo",
+    33: "Day-Dah",
+    34: "Day-Doh",
+    35: "Day-Doo",
+    36: "Day-Kah",
+    37: "Day-Koh",
+    38: "Day-Tah",
+    39: "Day-Toh",
+    40: "Dee-Bay",
+    41: "Dee-Boh",
+    42: "Dee-Boo",
+    43: "Dee-Dah",
+    44: "Dee-Doh",
+    45: "Dee-Doo",
+    46: "Dee-Kah",
+    47: "Dee-Koh",
+    48: "Dee-Tah",
+    49: "Dee-Toh",
+    50: "Doo-Bay",
+    51: "Doo-Boh",
+    52: "Doo-Boo",
+    53: "Doo-Dah",
+    54: "Doo-Doh",
+    55: "Doo-Doo",
+    56: "Doo-Kah",
+    57: "Doo-Koh",
+    58: "Doo-Tah",
+    59: "Doo-Toh",
+    60: "Kee-Bay",
+    61: "Kee-Boh",
+    62: "Kee-Boo",
+    63: "Kee-Dah",
+    64: "Kee-Doh",
+    65: "Kee-Doo",
+    66: "Kee-Kah",
+    67: "Kee-Koh",
+    68: "Kee-Tah",
+    69: "Kee-Toh",
+    70: "Loo-Bay",
+    71: "Loo-Boh",
+    72: "Loo-Boo",
+    73: "Loo-Dah",
+    74: "Loo-Doh",
+    75: "Loo-Doo",
+    76: "Loo-Kah",
+    77: "Loo-Koh",
+    78: "Loo-Tah",
+    79: "Loo-Toh",
+    80: "May-Bay",
+    81: "May-Boh",
+    82: "May-Boo",
+    83: "May-Dah",
+    84: "May-Doh",
+    85: "May-Doo",
+    86: "May-Kah",
+    87: "May-Koh",
+    88: "May-Tah",
+    89: "May-Toh",
+    90: "Noo-Bay",
+    91: "Noo-Boh",
+    92: "Noo-Boo",
+    93: "Noo-Dah",
+    94: "Noo-Doh",
+    95: "Noo-Doo",
+    96: "Noo-Kah",
+    97: "Noo-Koh",
+    98: "Noo-Tah",
+    99: "Noo-Toh",
+    100: "Tay-Bay",
+    101: "Tay-Boh",
+    102: "Tay-Boo",
+    103: "Tay-Dah",
+    104: "Tay-Doh",
+    105: "Tay-Doo",
+    106: "Tay-Kah",
+    107: "Tay-Koh",
+    108: "Tay-Tah",
+    109: "Tay-Toh",
+    110: "Toh-Bay",
+    111: "Toh-Boh",
+    112: "Toh-Boo",
+    113: "Toh-Dah",
+    114: "Toh-Doh",
+    115: "Toh-Doo",
+    116: "Toh-Kah",
+    117: "Toh-Koh",
+    118: "Toh-Tah",
+    119: "Toh-Toh",
+    120: "Way-Bay",
+    121: "Way-Boh",
+    122: "Way-Boo",
+    123: "Way-Dah",
+    124: "Way-Doh",
+    125: "Way-Doo",
+    126: "Way-Kah",
+    127: "Way-Koh",
+    128: "Way-Tah",
+    129: "Way-Toh",
 }

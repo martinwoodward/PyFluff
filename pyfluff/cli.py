@@ -239,9 +239,7 @@ def upload_dlc(
         async with FurbyConnect() as furby:
             dlc_manager = DLCManager(furby)
 
-            with console.status(
-                f"[bold green]Uploading {file_path.name} to slot {slot}..."
-            ):
+            with console.status(f"[bold green]Uploading {file_path.name} to slot {slot}..."):
                 await dlc_manager.upload_dlc(file_path, slot)
 
             console.print(f"[green]✓[/green] DLC uploaded successfully to slot {slot}")
@@ -297,6 +295,7 @@ def list_known(
 
         for furby in furbies:
             from datetime import datetime
+
             last_seen = datetime.fromtimestamp(furby.last_seen).strftime("%Y-%m-%d %H:%M:%S")
             table.add_row(
                 furby.address,
