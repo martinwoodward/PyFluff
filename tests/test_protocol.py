@@ -261,15 +261,17 @@ def test_furby_names_dict() -> None:
     """Test that FURBY_NAMES dictionary is properly populated."""
     from pyfluff.protocol import FURBY_NAMES
 
-    # Should have 129 names (IDs 0-128)
-    assert len(FURBY_NAMES) == 129
+    # Should have 130 names (IDs 0-129)
+    assert len(FURBY_NAMES) == 130
 
     # Check some known names
     assert FURBY_NAMES[0] == "Ah-Bay"
     assert FURBY_NAMES[11] == "Bee-Boh"
     assert FURBY_NAMES[55] == "Doo-Doo"
-    assert FURBY_NAMES[128] == "Way-Toh"
+    assert FURBY_NAMES[108] == "Tay-Tah"  # This was the bug - was "Tay-Toh"
+    assert FURBY_NAMES[109] == "Tay-Toh"
+    assert FURBY_NAMES[129] == "Way-Toh"
 
-    # All IDs from 0-128 should be present
-    for i in range(129):
+    # All IDs from 0-129 should be present
+    for i in range(130):
         assert i in FURBY_NAMES
