@@ -166,7 +166,11 @@ else
 fi
 echo ""
 echo "API documentation available at:"
-echo "  http://$HOST:$PORT/docs"
+if [ "$HOST" = "0.0.0.0" ]; then
+    echo "  http://localhost:$PORT/docs"
+else
+    echo "  http://$HOST:$PORT/docs"
+fi
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo "======================================"

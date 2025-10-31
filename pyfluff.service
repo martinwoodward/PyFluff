@@ -9,6 +9,8 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/PyFluff
 Environment="PATH=/home/pi/PyFluff/venv/bin"
+# Uses default settings (0.0.0.0:8080). For custom settings, use:
+# ExecStart=/home/pi/PyFluff/venv/bin/uvicorn pyfluff.server:app --host 0.0.0.0 --port 8080
 ExecStart=/home/pi/PyFluff/venv/bin/python -m pyfluff.server
 Restart=on-failure
 RestartSec=10
