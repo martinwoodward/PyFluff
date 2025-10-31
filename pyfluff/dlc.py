@@ -7,8 +7,8 @@ uploaded to Furby.
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Callable, Awaitable
 
 from pyfluff.furby import FurbyConnect
 from pyfluff.protocol import FILE_CHUNK_SIZE, FileTransferMode, FurbyProtocol
@@ -60,12 +60,13 @@ class DLCManager:
             logger.warning(f"Unknown file transfer mode: {data[1]}")
 
     async def upload_dlc(
-        self, 
-        dlc_path: Path, 
-        slot: int = 2, 
+        self,
+        dlc_path: Path,
+        slot: int = 2,
         timeout: float = 300.0,
         enable_nordic_ack: bool = True,
-        progress_callback: ProgressCallback = None
+        progress_callback: ProgressCallback = None,
+        chunk_delay: float = 0.005
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -76,6 +77,9 @@ class DLCManager:
             timeout: Upload timeout in seconds (default: 300 = 5 minutes)
             enable_nordic_ack: Enable Nordic packet ACK for monitoring (default: True)
             progress_callback: Optional async callback(bytes_uploaded, total_bytes, status_message)
+            chunk_delay: Delay in seconds between chunks (default: 0.005).
+                        Increase if you experience FILE_TRANSFER_TIMEOUT errors.
+                        Decrease for faster uploads if your Furby can handle it.
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist
@@ -93,7 +97,7 @@ class DLCManager:
         filename = dlc_path.name
 
         logger.info(f"Uploading DLC: {filename} ({file_size} bytes) to slot {slot}")
-        
+
         if self._progress_callback:
             await self._progress_callback(0, file_size, f"Starting upload: {filename}")
 
@@ -132,7 +136,7 @@ class DLCManager:
             logger.info("Furby ready, uploading data...")
             if self._progress_callback:
                 await self._progress_callback(0, file_size, "Uploading data...")
-            
+
             offset = 0
             chunk_count = 0
 
@@ -143,9 +147,12 @@ class DLCManager:
                 chunk_count += 1
 
                 # Small delay to prevent overwhelming Furby
-                # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout.
-                # NOTE: This value may require calibration for different Furby devices or BLE implementations.
-                await asyncio.sleep(0.002)
+                # This value may require calibration for different Furby
+                # devices or BLE implementations.
+                # If you get FILE_TRANSFER_TIMEOUT errors, increase chunk_delay parameter.
+                # If uploads work reliably, you can decrease chunk_delay for faster
+                # transfers.
+                await asyncio.sleep(chunk_delay)
 
                 # Progress updates (every 5% of file size for consistent UX)
                 progress = (offset / file_size) * 100
@@ -153,14 +160,16 @@ class DLCManager:
                     logger.debug(f"Upload progress: {progress:.1f}%")
                     if self._progress_callback:
                         await self._progress_callback(
-                            offset, file_size, 
+                            offset, file_size,
                             f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)"
                         )
                     self._last_progress_percent = progress
 
             logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
             if self._progress_callback:
-                await self._progress_callback(file_size, file_size, "Waiting for Furby to confirm...")
+                await self._progress_callback(
+                    file_size, file_size, "Waiting for Furby to confirm..."
+                )
 
             # Wait for transfer complete
             try:
@@ -228,7 +237,8 @@ class DLCManager:
         dlc_path: Path,
         slot: int = 2,
         delete_first: bool = True,
-        progress_callback: ProgressCallback = None
+        progress_callback: ProgressCallback = None,
+        chunk_delay: float = 0.005
     ) -> None:
         """
         Complete workflow: Upload, load, and activate a DLC file in one call.
@@ -242,6 +252,8 @@ class DLCManager:
             slot: Slot number to use (default: 2)
             delete_first: Delete existing DLC in slot first (default: True)
             progress_callback: Optional async callback(bytes_uploaded, total_bytes, status_message)
+            chunk_delay: Delay in seconds between chunks (default: 0.005).
+                        Increase if you experience FILE_TRANSFER_TIMEOUT errors.
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist
@@ -259,7 +271,9 @@ class DLCManager:
             # Step 2: Upload DLC file
             if progress_callback:
                 await progress_callback(0, 0, "Starting DLC upload...")
-            await self.upload_dlc(dlc_path, slot, progress_callback=progress_callback)
+            await self.upload_dlc(
+                dlc_path, slot, progress_callback=progress_callback, chunk_delay=chunk_delay
+            )
             # Increased delay to give Furby more time to finalize the uploaded file
             await asyncio.sleep(2.0)
 
