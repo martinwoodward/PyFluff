@@ -100,6 +100,7 @@ def test_build_dlc_announce_command() -> None:
 
     # Check command ID
     assert cmd[0] == GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value
+    assert cmd[1] == 0x00  # Fixed 0x00 byte
 
     # Check extra byte at index 1
     assert cmd[1] == 0x00
