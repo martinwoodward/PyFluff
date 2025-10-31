@@ -160,7 +160,42 @@ echo ""
 echo "Access the web interface at:"
 if [ "$HOST" = "0.0.0.0" ]; then
     echo "  Local:  http://localhost:$PORT"
-    echo "  Network: http://$(hostname -I | awk '{print $1}'):$PORT" 2>/dev/null || echo "  Network: http://<your-ip>:$PORT"
+    # Cross-platform: get primary network IP address
+    get_ip_address() {
+        # Try Linux (hostname -I)
+        if command -v hostname >/dev/null 2>&1; then
+            ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+            if [ -n "$ip" ]; then
+                echo "$ip"
+                return
+            fi
+        fi
+        # Try macOS (ipconfig getifaddr en0)
+        if command -v ipconfig >/dev/null 2>&1; then
+            ip=$(ipconfig getifaddr en0 2>/dev/null)
+            if [ -n "$ip" ]; then
+                echo "$ip"
+                return
+            fi
+            # Try en1 (Ethernet) if en0 fails
+            ip=$(ipconfig getifaddr en1 2>/dev/null)
+            if [ -n "$ip" ]; then
+                echo "$ip"
+                return
+            fi
+        fi
+        # Try ifconfig (BSD fallback)
+        if command -v ifconfig >/dev/null 2>&1; then
+            ip=$(ifconfig 2>/dev/null | awk '/inet / && $2 != "127.0.0.1" {print $2; exit}')
+            if [ -n "$ip" ]; then
+                echo "$ip"
+                return
+            fi
+        fi
+        # Fallback
+        echo "<your-ip>"
+    }
+    echo "  Network: http://$(get_ip_address):$PORT"
 else
     echo "  http://$HOST:$PORT"
 fi
