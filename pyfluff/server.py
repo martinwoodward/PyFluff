@@ -6,22 +6,22 @@ Provides HTTP API and WebSocket support for controlling Furby Connect.
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
+from pyfluff.dlc import DLCManager
 from pyfluff.furby import FurbyConnect
 from pyfluff.furby_cache import FurbyCache
-from pyfluff.dlc import DLCManager
 from pyfluff.models import (
-    ActionSequence,
     ActionList,
+    ActionSequence,
     AntennaColor,
     CommandResponse,
     ConnectRequest,
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup: Load cache and prepare for connections
     logger.info("PyFluff server starting up...")
     furby = None
-    
+
     # Initialize Furby cache
     try:
         furby_cache = FurbyCache("known_furbies.json")
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.error(f"Failed to initialize cache: {e}")
         furby_cache = FurbyCache()  # Start with empty cache
-    
+
     logger.info("Server ready. Connect to Furby via the web interface.")
 
     yield
@@ -109,9 +109,9 @@ async def broadcast_log(message: str, log_type: str = "info") -> None:
     """Broadcast log message to all connected WebSocket clients."""
     if not connection_logs:
         return
-    
+
     log_data = {"message": message, "type": log_type}
-    
+
     # Send to all connected clients
     disconnected = []
     for ws in connection_logs:
@@ -119,7 +119,7 @@ async def broadcast_log(message: str, log_type: str = "info") -> None:
             await ws.send_json(log_data)
         except Exception:
             disconnected.append(ws)
-    
+
     # Remove disconnected clients
     for ws in disconnected:
         connection_logs.remove(ws)
@@ -177,7 +177,7 @@ async def get_known_furbies() -> dict:
     """Get list of all known Furby devices from cache."""
     if furby_cache is None:
         return {"furbies": [], "count": 0}
-    
+
     furbies = furby_cache.get_all()
     return {
         "furbies": [f.model_dump() for f in furbies],
@@ -190,7 +190,7 @@ async def remove_known_furby(address: str) -> CommandResponse:
     """Remove a Furby from the known devices cache."""
     if furby_cache is None:
         raise HTTPException(status_code=503, detail="Cache not initialized")
-    
+
     if furby_cache.remove(address):
         return CommandResponse(success=True, message=f"Removed {address} from cache")
     else:
@@ -202,7 +202,7 @@ async def clear_known_furbies() -> CommandResponse:
     """Clear all known Furby devices from cache."""
     if furby_cache is None:
         raise HTTPException(status_code=503, detail="Cache not initialized")
-    
+
     furby_cache.clear()
     return CommandResponse(success=True, message="Cache cleared")
 
@@ -221,35 +221,43 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
         address = request.address if request else None
         timeout = request.timeout if request else 15.0
         retries = request.retries if request else 3
-        
+
         # Send initial message
         if address:
             await broadcast_log(f"Connecting to Furby at {address}...", "info")
             if retries > 1:
-                await broadcast_log(f"Using {retries} connection attempts (F2F mode support)", "info")
+                await broadcast_log(
+                    f"Using {retries} connection attempts (F2F mode support)", "info"
+                )
         else:
             await broadcast_log("Scanning for Furby devices...", "info")
-        
+
         furby = FurbyConnect()
-        
+
         # Create custom logging handler to broadcast to WebSocket
         class WebSocketHandler(logging.Handler):
             def emit(self, record):
-                log_type = "error" if record.levelno >= logging.ERROR else "success" if "success" in record.getMessage().lower() else "info"
+                msg_lower = record.getMessage().lower()
+                if record.levelno >= logging.ERROR:
+                    log_type = "error"
+                elif "success" in msg_lower:
+                    log_type = "success"
+                else:
+                    log_type = "info"
                 # Use asyncio to schedule the broadcast
                 loop = asyncio.get_event_loop()
                 loop.create_task(broadcast_log(record.getMessage(), log_type))
-        
+
         # Add handler temporarily
         ws_handler = WebSocketHandler()
         ws_handler.setLevel(logging.INFO)
         furby_logger = logging.getLogger("pyfluff.furby")
         furby_logger.addHandler(ws_handler)
-        
+
         try:
             await furby.connect(address=address, timeout=timeout, retries=retries)
             await broadcast_log("Connected to Furby", "success")
-            
+
             # Update cache after successful connection
             if furby_cache and furby.device:
                 try:
@@ -263,20 +271,20 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
                     logger.info(f"Updated cache for {furby.device.address}")
                 except Exception as e:
                     logger.warning(f"Could not update cache: {e}")
-            
+
             # Short pause to let connection stabilize
             await asyncio.sleep(0.5)
-            
+
             # Toggle debug menu
             try:
                 await furby.cycle_debug_menu()
                 await broadcast_log("Debug menu toggled", "success")
             except Exception as e:
                 logger.warning(f"Could not toggle debug menu: {e}")
-            
+
             # Flash antenna red twice
             try:
-                for i in range(2):
+                for _i in range(2):
                     await furby.set_antenna_color(255, 0, 0)
                     await asyncio.sleep(0.3)
                     await furby.set_antenna_color(0, 0, 0)
@@ -284,15 +292,15 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
                 await broadcast_log("Connection sequence complete", "success")
             except Exception as e:
                 logger.warning(f"Could not flash antenna: {e}")
-            
+
             return CommandResponse(success=True, message="Connected to Furby")
         finally:
             furby_logger.removeHandler(ws_handler)
-            
+
     except Exception as e:
         logger.error(f"Connection failed: {e}")
         await broadcast_log(f"Connection failed: {e}", "error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/disconnect", response_model=CommandResponse)
@@ -317,13 +325,16 @@ async def set_antenna(color: AntennaColor) -> CommandResponse:
         )
     except Exception as e:
         logger.error(f"Failed to set antenna color: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/action", response_model=CommandResponse)
 async def trigger_action(action: ActionSequence) -> CommandResponse:
     """Trigger a Furby action sequence."""
-    logger.info(f"Triggering action: {action.input}/{action.index}/{action.subindex}/{action.specific}")
+    logger.info(
+        f"Triggering action: {action.input}/{action.index}/"
+        f"{action.subindex}/{action.specific}"
+    )
     fb = get_furby()
     try:
         await fb.trigger_action(action.input, action.index, action.subindex, action.specific)
@@ -331,40 +342,46 @@ async def trigger_action(action: ActionSequence) -> CommandResponse:
         return CommandResponse(success=True, message="Action triggered")
     except Exception as e:
         logger.error(f"Failed to trigger action: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/actions/sequence", response_model=CommandResponse)
 async def trigger_action_sequence(action_list: ActionList) -> CommandResponse:
     """
     Trigger a sequence of Furby actions with delays between them.
-    
+
     This endpoint executes multiple actions one after another, waiting for the
     specified delay between each action to allow Furby to complete animations/sounds.
     """
     fb = get_furby()
     total_actions = len(action_list.actions)
-    logger.info(f"Starting action sequence with {total_actions} actions (delay: {action_list.delay}s)")
-    
+    logger.info(
+        f"Starting action sequence with {total_actions} actions "
+        f"(delay: {action_list.delay}s)"
+    )
+
     try:
         for i, action in enumerate(action_list.actions, 1):
-            logger.info(f"Triggering action {i}/{total_actions}: {action.input}/{action.index}/{action.subindex}/{action.specific}")
+            logger.info(
+                f"Triggering action {i}/{total_actions}: "
+                f"{action.input}/{action.index}/{action.subindex}/{action.specific}"
+            )
             await fb.trigger_action(action.input, action.index, action.subindex, action.specific)
-            
+
             # Wait before next action (except after the last one)
             if i < total_actions:
                 logger.debug(f"Waiting {action_list.delay}s before next action")
                 await asyncio.sleep(action_list.delay)
-        
+
         logger.info(f"Action sequence completed successfully ({total_actions} actions)")
         return CommandResponse(
-            success=True, 
+            success=True,
             message=f"Sequence completed: {total_actions} actions",
             data={"actions_executed": total_actions, "delay_used": action_list.delay}
         )
     except Exception as e:
         logger.error(f"Failed to execute action sequence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/lcd/{state}", response_model=CommandResponse)
@@ -380,7 +397,7 @@ async def set_lcd(state: bool) -> CommandResponse:
         )
     except Exception as e:
         logger.error(f"Failed to set LCD: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/debug", response_model=CommandResponse)
@@ -395,13 +412,13 @@ async def cycle_debug_menu() -> CommandResponse:
 async def set_name(name_id: int) -> CommandResponse:
     """Set Furby name by ID (0-128)."""
     global furby_cache
-    
+
     if not 0 <= name_id <= 128:
         raise HTTPException(status_code=400, detail="Name ID must be between 0 and 128")
 
     fb = get_furby()
     await fb.set_name(name_id)
-    
+
     # Update cache with new name
     if furby_cache and fb.device:
         try:
@@ -415,7 +432,7 @@ async def set_name(name_id: int) -> CommandResponse:
             logger.info(f"Updated name in cache for {fb.device.address}")
         except Exception as e:
             logger.warning(f"Could not update name in cache: {e}")
-    
+
     return CommandResponse(success=True, message=f"Name set to ID {name_id}")
 
 
@@ -465,7 +482,7 @@ async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
         )
     except Exception as e:
         logger.error(f"DLC upload failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
         tmp_path.unlink(missing_ok=True)
 
@@ -638,7 +655,7 @@ async def websocket_logs(websocket: WebSocket) -> None:
     await websocket.accept()
     connection_logs.append(websocket)
     logger.info("Log WebSocket client connected")
-    
+
     try:
         # Keep connection alive
         while True:

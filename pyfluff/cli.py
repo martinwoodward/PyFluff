@@ -10,13 +10,12 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.table import Table
-from rich.live import Live
 from rich.panel import Panel
+from rich.table import Table
 
+from pyfluff.dlc import DLCManager
 from pyfluff.furby import FurbyConnect
 from pyfluff.furby_cache import FurbyCache
-from pyfluff.dlc import DLCManager
 
 app = typer.Typer(help="PyFluff - Control Furby Connect from the command line")
 console = Console()
@@ -56,7 +55,7 @@ def scan(
             )
 
         console.print(table)
-        
+
         if not all and len(devices) == 0:
             console.print("\n[yellow]💡 Tip: Furbies in F2F mode may not advertise.[/yellow]")
             console.print("[yellow]   Try: pyfluff scan --all[/yellow]")
@@ -82,7 +81,7 @@ def connect(
                 await furby.disconnect()
             except Exception as e:
                 console.print(f"[red]✗[/red] Connection failed: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
 
     asyncio.run(_connect())
 
@@ -231,7 +230,7 @@ def monitor(duration: int = typer.Option(0, help="Duration in seconds (0 = infin
 
 @app.command()
 def upload_dlc(
-    file_path: Path = typer.Argument(..., help="Path to DLC file", exists=True),
+    file_path: Path = typer.Argument(..., exists=True, help="Path to DLC file"),
     slot: int = typer.Option(2, help="Slot number (default: 2)"),
 ) -> None:
     """Upload a DLC file to Furby."""
@@ -277,7 +276,9 @@ def activate_dlc() -> None:
 
 
 @app.command()
-def list_known(cache_file: str = typer.Option("known_furbies.json", help="Cache file path")) -> None:
+def list_known(
+    cache_file: str = typer.Option("known_furbies.json", help="Cache file path")
+) -> None:
     """List all known Furby devices from cache."""
     try:
         cache = FurbyCache(cache_file)
@@ -309,7 +310,7 @@ def list_known(cache_file: str = typer.Option("known_furbies.json", help="Cache 
 
     except Exception as e:
         console.print(f"[red]Failed to read cache: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -327,7 +328,7 @@ def remove_known(
             raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]Failed to remove from cache: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -355,7 +356,7 @@ def clear_known(
 
     except Exception as e:
         console.print(f"[red]Failed to clear cache: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":
