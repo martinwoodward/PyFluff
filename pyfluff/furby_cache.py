@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class FurbyCache:
     """
     Manages a persistent cache of known Furby devices.
-    
+
     The cache is stored as a JSON file and tracks:
     - MAC addresses of discovered Furbies
     - Last known names and name IDs
@@ -31,7 +31,7 @@ class FurbyCache:
     def __init__(self, cache_file: Path | str = "known_furbies.json") -> None:
         """
         Initialize the Furby cache.
-        
+
         Args:
             cache_file: Path to the cache file (default: known_furbies.json)
         """
@@ -75,14 +75,14 @@ class FurbyCache:
     ) -> KnownFurby:
         """
         Add or update a Furby in the cache.
-        
+
         Args:
             address: MAC address of the Furby
             device_name: BLE device name (e.g., "Furby")
             name: Furby's name (if known)
             name_id: Furby's name ID (0-128)
             firmware_revision: Firmware version (if known)
-            
+
         Returns:
             The updated KnownFurby entry
         """
@@ -116,10 +116,10 @@ class FurbyCache:
     def get(self, address: str) -> KnownFurby | None:
         """
         Get a Furby from the cache by MAC address.
-        
+
         Args:
             address: MAC address of the Furby
-            
+
         Returns:
             KnownFurby entry if found, None otherwise
         """
@@ -128,7 +128,7 @@ class FurbyCache:
     def get_all(self) -> list[KnownFurby]:
         """
         Get all known Furbies from the cache.
-        
+
         Returns:
             List of all KnownFurby entries, sorted by last_seen (newest first)
         """
@@ -139,10 +139,10 @@ class FurbyCache:
     def remove(self, address: str) -> bool:
         """
         Remove a Furby from the cache.
-        
+
         Args:
             address: MAC address of the Furby to remove
-            
+
         Returns:
             True if removed, False if not found
         """
@@ -163,7 +163,7 @@ class FurbyCache:
     def get_addresses(self) -> list[str]:
         """
         Get all known MAC addresses.
-        
+
         Returns:
             List of MAC addresses
         """
@@ -172,7 +172,7 @@ class FurbyCache:
     def update_name(self, address: str, name: str, name_id: int) -> None:
         """
         Update the name of a known Furby.
-        
+
         Args:
             address: MAC address of the Furby
             name: New name
@@ -190,7 +190,7 @@ class FurbyCache:
     def get_most_recent(self) -> KnownFurby | None:
         """
         Get the most recently seen Furby.
-        
+
         Returns:
             Most recent KnownFurby entry, or None if cache is empty
         """

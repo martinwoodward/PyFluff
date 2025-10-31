@@ -240,9 +240,7 @@ def upload_dlc(
         async with FurbyConnect() as furby:
             dlc_manager = DLCManager(furby)
 
-            with console.status(
-                f"[bold green]Uploading {file_path.name} to slot {slot}..."
-            ):
+            with console.status(f"[bold green]Uploading {file_path.name} to slot {slot}..."):
                 await dlc_manager.upload_dlc(file_path, slot)
 
             console.print(f"[green]✓[/green] DLC uploaded successfully to slot {slot}")
@@ -277,7 +275,9 @@ def activate_dlc() -> None:
 
 
 @app.command()
-def list_known(cache_file: str = typer.Option("known_furbies.json", help="Cache file path")) -> None:
+def list_known(
+    cache_file: str = typer.Option("known_furbies.json", help="Cache file path")
+) -> None:
     """List all known Furby devices from cache."""
     try:
         cache = FurbyCache(cache_file)
@@ -296,6 +296,7 @@ def list_known(cache_file: str = typer.Option("known_furbies.json", help="Cache 
 
         for furby in furbies:
             from datetime import datetime
+
             last_seen = datetime.fromtimestamp(furby.last_seen).strftime("%Y-%m-%d %H:%M:%S")
             table.add_row(
                 furby.address,

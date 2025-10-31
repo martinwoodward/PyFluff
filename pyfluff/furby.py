@@ -60,9 +60,7 @@ class FurbyConnect:
 
     @staticmethod
     async def discover(
-        timeout: float = 10.0,
-        show_all: bool = False,
-        cache: "FurbyCache | None" = None
+        timeout: float = 10.0, show_all: bool = False, cache: "FurbyCache | None" = None
     ) -> list[BLEDevice]:
         """
         Discover nearby Furby Connect devices.
@@ -75,7 +73,9 @@ class FurbyConnect:
         Returns:
             List of discovered Furby devices (or all devices if show_all=True)
         """
-        logger.info(f"Scanning for {'all BLE' if show_all else 'Furby'} devices (timeout: {timeout}s)...")
+        logger.info(
+            f"Scanning for {'all BLE' if show_all else 'Furby'} devices (timeout: {timeout}s)..."
+        )
         devices = await BleakScanner.discover(timeout=timeout)
 
         if show_all:
@@ -88,10 +88,7 @@ class FurbyConnect:
         # Update cache with discovered Furbies
         if cache is not None:
             for device in furbies:
-                cache.add_or_update(
-                    address=device.address,
-                    device_name=device.name
-                )
+                cache.add_or_update(address=device.address, device_name=device.name)
                 logger.debug(f"Updated cache for {device.address}")
 
         if len(furbies) == 0:
@@ -102,7 +99,9 @@ class FurbyConnect:
 
         return furbies
 
-    async def connect(self, address: str | None = None, timeout: float = 10.0, retries: int = 3) -> None:
+    async def connect(
+        self, address: str | None = None, timeout: float = 10.0, retries: int = 3
+    ) -> None:
         """
         Connect to a Furby device.
 
@@ -183,7 +182,9 @@ class FurbyConnect:
         elif self.device is None:
             devices = await self.discover(timeout)
             if not devices:
-                raise RuntimeError("No Furby devices found. Try connecting by MAC address if Furby is in F2F mode.")
+                raise RuntimeError(
+                    "No Furby devices found. Try connecting by MAC address if Furby is in F2F mode."
+                )
             self.device = devices[0]
             logger.info(f"Selected Furby: {self.device.address}")
             self.client = BleakClient(self.device, timeout=timeout)
@@ -319,9 +320,7 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
-        await self.client.write_gatt_char(
-            FurbyCharacteristic.NORDIC_WRITE, data, response=False
-        )
+        await self.client.write_gatt_char(FurbyCharacteristic.NORDIC_WRITE, data, response=False)
         logger.debug(f"Nordic write: {data.hex()}")
 
     async def enable_nordic_packet_ack(self, enabled: bool = True) -> None:
@@ -344,9 +343,7 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
-        await self.client.write_gatt_char(
-            FurbyCharacteristic.FILE_WRITE, data, response=False
-        )
+        await self.client.write_gatt_char(FurbyCharacteristic.FILE_WRITE, data, response=False)
         logger.debug(f"File write: {data.hex()}")
 
     # High-level command methods
@@ -364,9 +361,7 @@ class FurbyConnect:
         await self._write_gp(cmd)
         logger.info(f"Set antenna color to RGB({red}, {green}, {blue})")
 
-    async def trigger_action(
-        self, input: int, index: int, subindex: int, specific: int
-    ) -> None:
+    async def trigger_action(self, input: int, index: int, subindex: int, specific: int) -> None:
         """
         Trigger a specific Furby action.
 
