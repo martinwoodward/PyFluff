@@ -1,9 +1,4 @@
 """
-Tests for PyFluff DLC module.
-"""
-
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 Tests for PyFluff DLC (DownLoadable Content) manager.
 
 These tests use mocks for BLE operations since we can't test with real hardware.
@@ -11,11 +6,12 @@ These tests use mocks for BLE operations since we can't test with real hardware.
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pyfluff.dlc import DLCManager
+from pyfluff.furby import FurbyConnect
 from pyfluff.protocol import FileTransferMode
 
 
@@ -177,7 +173,6 @@ async def test_flash_and_activate_passes_chunk_delay(dlc_manager, tmp_path):
     dlc_manager.upload_dlc.assert_called_once()
     call_kwargs = dlc_manager.upload_dlc.call_args.kwargs
     assert call_kwargs["chunk_delay"] == custom_delay
-from pyfluff.furby import FurbyConnect
 
 
 class TestDLCManager:

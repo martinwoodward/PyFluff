@@ -145,27 +145,28 @@ class DLCManager:
                         break
 
                     await self.furby._write_file(chunk)
+                    offset += len(chunk)
                     chunk_count += 1
 
-                # Small delay to prevent overwhelming Furby
-                # This value may require calibration for different Furby
-                # devices or BLE implementations.
-                # If you get FILE_TRANSFER_TIMEOUT errors, increase chunk_delay parameter.
-                # If uploads work reliably, you can decrease chunk_delay for faster
-                # transfers.
-                await asyncio.sleep(chunk_delay)
+                    # Small delay to prevent overwhelming Furby
+                    # This value may require calibration for different Furby
+                    # devices or BLE implementations.
+                    # If you get FILE_TRANSFER_TIMEOUT errors, increase chunk_delay parameter.
+                    # If uploads work reliably, you can decrease chunk_delay for faster
+                    # transfers.
+                    await asyncio.sleep(chunk_delay)
 
-                # Progress updates (every 5% of file size for consistent UX)
-                progress = (offset / file_size) * 100
-                if progress - self._last_progress_percent >= 5 or offset == file_size:
-                    logger.debug(f"Upload progress: {progress:.1f}%")
-                    if self._progress_callback:
-                        await self._progress_callback(
-                            offset,
-                            file_size,
-                            f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)",
-                        )
-                    self._last_progress_percent = progress
+                    # Progress updates (every 5% of file size for consistent UX)
+                    progress = (offset / file_size) * 100
+                    if progress - self._last_progress_percent >= 5 or offset == file_size:
+                        logger.debug(f"Upload progress: {progress:.1f}%")
+                        if self._progress_callback:
+                            await self._progress_callback(
+                                offset,
+                                file_size,
+                                f"Uploading: {progress:.1f}% ({offset}/{file_size} bytes)",
+                            )
+                        self._last_progress_percent = progress
 
             logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
             if self._progress_callback:
