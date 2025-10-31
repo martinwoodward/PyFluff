@@ -279,7 +279,7 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
 
             # Flash antenna red twice
             try:
-                for i in range(2):
+                for _i in range(2):
                     await furby.set_antenna_color(255, 0, 0)
                     await asyncio.sleep(0.3)
                     await furby.set_antenna_color(0, 0, 0)
@@ -295,7 +295,7 @@ async def connect(request: ConnectRequest | None = None) -> CommandResponse:
     except Exception as e:
         logger.error(f"Connection failed: {e}")
         await broadcast_log(f"Connection failed: {e}", "error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/disconnect", response_model=CommandResponse)
@@ -320,14 +320,15 @@ async def set_antenna(color: AntennaColor) -> CommandResponse:
         )
     except Exception as e:
         logger.error(f"Failed to set antenna color: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/action", response_model=CommandResponse)
 async def trigger_action(action: ActionSequence) -> CommandResponse:
     """Trigger a Furby action sequence."""
     logger.info(
-        f"Triggering action: {action.input}/{action.index}/{action.subindex}/{action.specific}"
+        f"Triggering action: {action.input}/{action.index}/"
+        f"{action.subindex}/{action.specific}"
     )
     fb = get_furby()
     try:
@@ -336,7 +337,7 @@ async def trigger_action(action: ActionSequence) -> CommandResponse:
         return CommandResponse(success=True, message="Action triggered")
     except Exception as e:
         logger.error(f"Failed to trigger action: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/actions/sequence", response_model=CommandResponse)
@@ -350,13 +351,15 @@ async def trigger_action_sequence(action_list: ActionList) -> CommandResponse:
     fb = get_furby()
     total_actions = len(action_list.actions)
     logger.info(
-        f"Starting action sequence with {total_actions} actions (delay: {action_list.delay}s)"
+        f"Starting action sequence with {total_actions} actions "
+        f"(delay: {action_list.delay}s)"
     )
 
     try:
         for i, action in enumerate(action_list.actions, 1):
             logger.info(
-                f"Triggering action {i}/{total_actions}: {action.input}/{action.index}/{action.subindex}/{action.specific}"
+                f"Triggering action {i}/{total_actions}: "
+                f"{action.input}/{action.index}/{action.subindex}/{action.specific}"
             )
             await fb.trigger_action(action.input, action.index, action.subindex, action.specific)
 
@@ -373,7 +376,7 @@ async def trigger_action_sequence(action_list: ActionList) -> CommandResponse:
         )
     except Exception as e:
         logger.error(f"Failed to execute action sequence: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/lcd/{state}", response_model=CommandResponse)
@@ -387,7 +390,7 @@ async def set_lcd(state: bool) -> CommandResponse:
         return CommandResponse(success=True, message=f"LCD backlight {'on' if state else 'off'}")
     except Exception as e:
         logger.error(f"Failed to set LCD: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/debug", response_model=CommandResponse)
@@ -470,7 +473,7 @@ async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
         return CommandResponse(success=True, message=f"DLC uploaded to slot {slot}")
     except Exception as e:
         logger.error(f"DLC upload failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
         tmp_path.unlink(missing_ok=True)
 

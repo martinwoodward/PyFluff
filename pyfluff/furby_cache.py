@@ -7,10 +7,13 @@ application to remember previously connected Furbies and provides quick
 access to known devices even when they're in F2F mode.
 """
 
+import asyncio
 import json
 import logging
 import time
 from pathlib import Path
+
+import aiofiles
 
 from pyfluff.models import KnownFurbiesConfig, KnownFurby
 
@@ -26,6 +29,8 @@ class FurbyCache:
     - Last known names and name IDs
     - Last seen timestamps
     - Firmware versions (when available)
+
+    Uses async I/O for better performance and batches writes to reduce disk operations.
     """
 
     def __init__(self, cache_file: Path | str = "known_furbies.json") -> None:
@@ -37,6 +42,8 @@ class FurbyCache:
         """
         self.cache_file = Path(cache_file)
         self.config = self._load()
+        self._save_pending = False
+        self._save_lock = asyncio.Lock()
 
     def _load(self) -> KnownFurbiesConfig:
         """Load cache from disk."""
@@ -55,8 +62,20 @@ class FurbyCache:
             logger.warning("Starting with empty cache")
             return KnownFurbiesConfig(furbies={})
 
+    async def _save_async(self) -> None:
+        """Save cache to disk asynchronously."""
+        async with self._save_lock:
+            try:
+                self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+                async with aiofiles.open(self.cache_file, "w") as f:
+                    await f.write(json.dumps(self.config.model_dump(), indent=2))
+                logger.debug(f"Saved cache with {len(self.config.furbies)} Furbies")
+                self._save_pending = False
+            except Exception as e:
+                logger.error(f"Failed to save cache file: {e}")
+
     def _save(self) -> None:
-        """Save cache to disk."""
+        """Save cache to disk (synchronous fallback)."""
         try:
             self.cache_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.cache_file, "w") as f:
@@ -64,6 +83,17 @@ class FurbyCache:
             logger.debug(f"Saved cache with {len(self.config.furbies)} Furbies")
         except Exception as e:
             logger.error(f"Failed to save cache file: {e}")
+
+    def _schedule_save(self) -> None:
+        """Schedule an async save operation."""
+        if not self._save_pending:
+            self._save_pending = True
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._save_async())
+            except RuntimeError:
+                # No event loop running, fall back to sync save
+                self._save()
 
     def add_or_update(
         self,
@@ -109,7 +139,7 @@ class FurbyCache:
 
         # Save to cache
         self.config.furbies[address] = furby
-        self._save()
+        self._schedule_save()
 
         return furby
 
@@ -132,9 +162,7 @@ class FurbyCache:
         Returns:
             List of all KnownFurby entries, sorted by last_seen (newest first)
         """
-        furbies = list(self.config.furbies.values())
-        furbies.sort(key=lambda f: f.last_seen, reverse=True)
-        return furbies
+        return sorted(self.config.furbies.values(), key=lambda f: f.last_seen, reverse=True)
 
     def remove(self, address: str) -> bool:
         """
@@ -148,7 +176,7 @@ class FurbyCache:
         """
         if address in self.config.furbies:
             del self.config.furbies[address]
-            self._save()
+            self._schedule_save()
             logger.info(f"Removed Furby from cache: {address}")
             return True
         return False
@@ -157,7 +185,7 @@ class FurbyCache:
         """Clear all entries from the cache."""
         count = len(self.config.furbies)
         self.config.furbies.clear()
-        self._save()
+        self._schedule_save()
         logger.info(f"Cleared cache ({count} entries removed)")
 
     def get_addresses(self) -> list[str]:
@@ -182,7 +210,7 @@ class FurbyCache:
             self.config.furbies[address].name = name
             self.config.furbies[address].name_id = name_id
             self.config.furbies[address].last_seen = time.time()
-            self._save()
+            self._schedule_save()
             logger.info(f"Updated name for {address}: {name} (ID: {name_id})")
         else:
             logger.warning(f"Cannot update name for unknown Furby: {address}")

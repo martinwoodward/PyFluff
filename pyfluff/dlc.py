@@ -10,6 +10,8 @@ import logging
 from pathlib import Path
 from typing import Callable, Awaitable
 
+import aiofiles
+
 from pyfluff.furby import FurbyConnect
 from pyfluff.protocol import FILE_CHUNK_SIZE, FileTransferMode, FurbyProtocol
 
@@ -124,7 +126,7 @@ class DLCManager:
             except TimeoutError:
                 raise RuntimeError("Furby did not respond to DLC upload announcement") from None
 
-            # Upload file in chunks
+            # Upload file in chunks using async file I/O
             logger.info("Furby ready, uploading data...")
             if self._progress_callback:
                 await self._progress_callback(0, file_size, "Uploading data...")
@@ -132,11 +134,14 @@ class DLCManager:
             offset = 0
             chunk_count = 0
 
-            while offset < file_size:
-                chunk = dlc_data[offset : offset + FILE_CHUNK_SIZE]
-                await self.furby._write_file(chunk)
-                offset += len(chunk)
-                chunk_count += 1
+            async with aiofiles.open(dlc_path, "rb") as f:
+                while True:
+                    chunk = await f.read(FILE_CHUNK_SIZE)
+                    if not chunk:
+                        break
+
+                    await self.furby._write_file(chunk)
+                    chunk_count += 1
 
                 # Small delay to prevent overwhelming Furby
                 # Reduced from 0.005 to 0.002 to speed up transfer and avoid Furby timeout.

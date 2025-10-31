@@ -52,6 +52,7 @@ class FurbyConnect:
         self._idle_task: asyncio.Task[None] | None = None
         self._gp_callbacks: list[Callable[[bytes], None]] = []
         self._nordic_callbacks: list[Callable[[bytes], None]] = []
+        self._device_info_cache: FurbyInfo | None = None
 
     @property
     def connected(self) -> bool:
@@ -60,7 +61,9 @@ class FurbyConnect:
 
     @staticmethod
     async def discover(
-        timeout: float = 10.0, show_all: bool = False, cache: "FurbyCache | None" = None
+        timeout: float = 10.0,
+        show_all: bool = False,
+        cache: "FurbyCache | None" = None
     ) -> list[BLEDevice]:
         """
         Discover nearby Furby Connect devices.
@@ -74,7 +77,8 @@ class FurbyConnect:
             List of discovered Furby devices (or all devices if show_all=True)
         """
         logger.info(
-            f"Scanning for {'all BLE' if show_all else 'Furby'} devices (timeout: {timeout}s)..."
+            f"Scanning for {'all BLE' if show_all else 'Furby'} devices "
+            f"(timeout: {timeout}s)..."
         )
         devices = await BleakScanner.discover(timeout=timeout)
 
@@ -164,8 +168,8 @@ class FurbyConnect:
                     if self.client:
                         try:
                             await self.client.disconnect()
-                        except:
-                            pass
+                        except Exception as disconnect_error:
+                            logger.warning(f"Error during disconnect after failed connection attempt: {disconnect_error}")
                         self.client = None
                     self._connected = False
 
@@ -183,7 +187,8 @@ class FurbyConnect:
             devices = await self.discover(timeout)
             if not devices:
                 raise RuntimeError(
-                    "No Furby devices found. Try connecting by MAC address if Furby is in F2F mode."
+                    "No Furby devices found. "
+                    "Try connecting by MAC address if Furby is in F2F mode."
                 )
             self.device = devices[0]
             logger.info(f"Selected Furby: {self.device.address}")
@@ -421,9 +426,12 @@ class FurbyConnect:
         await self._write_gp(cmd)
         logger.info(f"Set mood {mood_type.name} to {value} (absolute={set_absolute})")
 
-    async def get_device_info(self) -> FurbyInfo:
+    async def get_device_info(self, use_cache: bool = True) -> FurbyInfo:
         """
         Get device information from Furby.
+
+        Args:
+            use_cache: If True, return cached info if available (default: True)
 
         Returns:
             FurbyInfo with device details
@@ -431,45 +439,46 @@ class FurbyConnect:
         if not self.client or not self.connected:
             raise RuntimeError("Not connected to Furby")
 
+        # Return cached info if available and requested
+        if use_cache and self._device_info_cache is not None:
+            return self._device_info_cache
+
         info = FurbyInfo()
 
-        # Read device information characteristics
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.MANUFACTURER_NAME)
-            info.manufacturer = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read manufacturer: {e}")
+        # Read all characteristics concurrently for better performance
+        characteristics = [
+            (FurbyCharacteristic.MANUFACTURER_NAME, "manufacturer"),
+            (FurbyCharacteristic.MODEL_NUMBER, "model_number"),
+            (FurbyCharacteristic.SERIAL_NUMBER, "serial_number"),
+            (FurbyCharacteristic.HARDWARE_REVISION, "hardware_revision"),
+            (FurbyCharacteristic.FIRMWARE_REVISION, "firmware_revision"),
+            (FurbyCharacteristic.SOFTWARE_REVISION, "software_revision"),
+        ]
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.MODEL_NUMBER)
-            info.model_number = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read model number: {e}")
+        async def read_characteristic(char_uuid: str, field_name: str) -> tuple[str, str | None]:
+            """Read a single characteristic and return the field name and value."""
+            try:
+                data = await self.client.read_gatt_char(char_uuid)
+                return field_name, data.decode("utf-8").strip("\x00")
+            except Exception as e:
+                logger.warning(f"Could not read {field_name}: {e}")
+                return field_name, None
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.SERIAL_NUMBER)
-            info.serial_number = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read serial number: {e}")
+        # Read all characteristics concurrently
+        results = await asyncio.gather(
+            *[read_characteristic(uuid, name) for uuid, name in characteristics],
+            return_exceptions=True
+        )
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.HARDWARE_REVISION)
-            info.hardware_revision = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read hardware revision: {e}")
+        # Set the results on the info object
+        for result in results:
+            if isinstance(result, tuple):
+                field_name, value = result
+                if value is not None:
+                    setattr(info, field_name, value)
 
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.FIRMWARE_REVISION)
-            info.firmware_revision = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read firmware revision: {e}")
-
-        try:
-            data = await self.client.read_gatt_char(FurbyCharacteristic.SOFTWARE_REVISION)
-            info.software_revision = data.decode("utf-8").strip("\x00")
-        except Exception as e:
-            logger.warning(f"Could not read software revision: {e}")
-
+        # Cache the result
+        self._device_info_cache = info
         return info
 
     async def sensor_stream(self) -> AsyncIterator[SensorData]:

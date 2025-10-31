@@ -82,7 +82,7 @@ def connect(
                 await furby.disconnect()
             except Exception as e:
                 console.print(f"[red]✗[/red] Connection failed: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
 
     asyncio.run(_connect())
 
@@ -231,7 +231,7 @@ def monitor(duration: int = typer.Option(0, help="Duration in seconds (0 = infin
 
 @app.command()
 def upload_dlc(
-    file_path: Path = typer.Argument(..., help="Path to DLC file", exists=True),
+    file_path: Path = typer.Argument(..., exists=True, help="Path to DLC file"),
     slot: int = typer.Option(2, help="Slot number (default: 2)"),
 ) -> None:
     """Upload a DLC file to Furby."""
@@ -310,7 +310,7 @@ def list_known(
 
     except Exception as e:
         console.print(f"[red]Failed to read cache: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -328,7 +328,7 @@ def remove_known(
             raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]Failed to remove from cache: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -356,7 +356,7 @@ def clear_known(
 
     except Exception as e:
         console.print(f"[red]Failed to clear cache: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":

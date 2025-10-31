@@ -29,7 +29,10 @@ class ActionList(BaseModel):
 
     actions: list[ActionSequence] = Field(description="List of actions to execute")
     delay: float = Field(
-        default=2.0, ge=0.1, le=30.0, description="Delay between actions in seconds (default: 2.0)"
+        default=2.0,
+        ge=0.1,
+        le=30.0,
+        description="Delay between actions in seconds (default: 2.0)",
     )
 
 
@@ -63,7 +66,9 @@ class SensorData(BaseModel):
 class ConnectRequest(BaseModel):
     """Request to connect to a Furby"""
 
-    address: str | None = Field(None, description="MAC address to connect to directly (optional)")
+    address: str | None = Field(
+        None, description="MAC address to connect to directly (optional)"
+    )
     timeout: float = Field(
         15.0, ge=1.0, le=60.0, description="Connection timeout per attempt in seconds"
     )

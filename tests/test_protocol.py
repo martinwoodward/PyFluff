@@ -102,10 +102,11 @@ def test_build_dlc_announce_command() -> None:
     assert cmd[0] == GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value
     assert cmd[1] == 0x00  # Fixed 0x00 byte
 
-    # Check extra byte at index 1
+    # Check 0x00 byte
     assert cmd[1] == 0x00
 
-    # Check size bytes (big-endian) at indices 2-4
+    # Check size bytes (big-endian) - note offset by 1 due to 0x00 byte
+    # Check size bytes (big-endian, 3 bytes)
     assert cmd[2] == 0x00  # (12345 >> 16) & 0xFF
     assert cmd[3] == 0x30  # (12345 >> 8) & 0xFF
     assert cmd[4] == 0x39  # 12345 & 0xFF
