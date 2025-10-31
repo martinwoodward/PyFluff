@@ -455,7 +455,9 @@ async def set_mood(mood: MoodUpdate) -> CommandResponse:
 
 
 @app.post("/dlc/upload", response_model=CommandResponse)
-async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
+async def upload_dlc(
+    file: UploadFile, slot: int = 2, chunk_delay: float = 0.020
+) -> CommandResponse:
     """Upload a DLC file to Furby."""
     fb = get_furby()
 
@@ -467,7 +469,7 @@ async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
 
     try:
         dlc_manager = DLCManager(fb)
-        await dlc_manager.upload_dlc(tmp_path, slot)
+        await dlc_manager.upload_dlc(tmp_path, slot, chunk_delay=chunk_delay)
         return CommandResponse(success=True, message=f"DLC uploaded to slot {slot}")
     except Exception as e:
         logger.error(f"DLC upload failed: {e}")
@@ -514,7 +516,10 @@ async def delete_dlc(slot: int) -> CommandResponse:
 
 @app.post("/dlc/flash-and-activate", response_model=CommandResponse)
 async def flash_and_activate(
-    file: UploadFile, slot: int = 2, delete_first: bool = True
+    file: UploadFile,
+    slot: int = 2,
+    delete_first: bool = True,
+    chunk_delay: float = 0.020,
 ) -> CommandResponse:
     """
     Complete DLC workflow: Upload, load, and activate in one call.
@@ -531,6 +536,9 @@ async def flash_and_activate(
         file: UploadFile containing the DLC file to flash
         slot: DLC slot number (0-2, default: 2)
         delete_first: Whether to delete existing DLC in slot first (default: True)
+        chunk_delay: Delay in seconds between chunks (default: 0.020 = 20ms).
+                     Conservative default to prevent FILE_TRANSFER_TIMEOUT errors.
+                     Can be decreased to 0.005-0.010 for faster uploads if reliable.
 
     Returns:
         CommandResponse with success status and message
@@ -561,7 +569,11 @@ async def flash_and_activate(
             await broadcast_dlc_progress(progress_data)
 
         await dlc_manager.flash_and_activate(
-            tmp_path, slot=slot, delete_first=delete_first, progress_callback=progress_callback
+            tmp_path,
+            slot=slot,
+            delete_first=delete_first,
+            progress_callback=progress_callback,
+            chunk_delay=chunk_delay,
         )
 
         return CommandResponse(
