@@ -171,8 +171,8 @@ class FurbyConnect:
                     if self.client:
                         try:
                             await self.client.disconnect()
-                        except Exception:
-                            pass
+                        except Exception as disconnect_error:
+                            logger.warning(f"Error during disconnect after failed connection attempt: {disconnect_error}")
                         self.client = None
                     self._connected = False
 
