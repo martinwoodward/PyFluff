@@ -68,7 +68,7 @@ class DLCManager:
         timeout: float = 300.0,
         enable_nordic_ack: bool = True,
         progress_callback: ProgressCallback = None,
-        chunk_delay: float = 0.020
+        chunk_delay: float = 0.020,
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -239,7 +239,7 @@ class DLCManager:
         slot: int = 2,
         delete_first: bool = True,
         progress_callback: ProgressCallback = None,
-        chunk_delay: float = 0.020
+        chunk_delay: float = 0.020,
     ) -> None:
         """
         Complete workflow: Upload, load, and activate a DLC file in one call.

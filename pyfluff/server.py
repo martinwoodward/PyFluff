@@ -470,9 +470,7 @@ async def upload_dlc(
     try:
         dlc_manager = DLCManager(fb)
         await dlc_manager.upload_dlc(tmp_path, slot, chunk_delay=chunk_delay)
-        return CommandResponse(
-            success=True, message=f"DLC uploaded to slot {slot}"
-        )
+        return CommandResponse(success=True, message=f"DLC uploaded to slot {slot}")
     except Exception as e:
         logger.error(f"DLC upload failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
