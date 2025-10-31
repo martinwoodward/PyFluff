@@ -173,8 +173,4 @@ echo "======================================"
 echo ""
 
 # Start the server
-if [ -n "$RELOAD_FLAG" ]; then
-    exec uvicorn pyfluff.server:app --host "$HOST" --port "$PORT" --log-level "$LOG_LEVEL" --reload
-else
-    exec python -m pyfluff.server
-fi
+exec uvicorn pyfluff.server:app --host "$HOST" --port "$PORT" --log-level "$LOG_LEVEL" $RELOAD_FLAG
