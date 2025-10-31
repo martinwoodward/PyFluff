@@ -1,0 +1,23 @@
+[Unit]
+Description=PyFluff - Furby Connect Controller
+Documentation=https://github.com/benbalter/PyFluff
+After=network.target bluetooth.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/PyFluff
+Environment="PATH=/home/pi/PyFluff/venv/bin"
+ExecStart=/home/pi/PyFluff/venv/bin/python -m pyfluff.server
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening (optional)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

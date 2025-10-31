@@ -90,6 +90,30 @@ Bluetooth should work out of the box. Ensure Bluetooth is enabled in System Pref
 
 ### Starting the Server
 
+#### Using the Startup Script (Recommended)
+
+```bash
+# Simple startup with default settings
+./start_server.sh
+
+# Start on a different port
+./start_server.sh --port 3000
+
+# Development mode with auto-reload
+./start_server.sh --reload
+
+# Show all options
+./start_server.sh --help
+```
+
+The startup script will:
+- Check Python version and dependencies
+- Create/activate virtual environment if needed
+- Verify Bluetooth is available (on Linux)
+- Start the server with helpful information
+
+#### Manual Startup
+
 ```bash
 # Activate virtual environment
 source venv/bin/activate
@@ -99,9 +123,9 @@ python -m pyfluff.server
 ```
 
 The server will:
-1. Scan for Furby Connect devices
-2. Automatically connect when found
-3. Start HTTP/WebSocket server on port 8080
+1. Load cache of known Furby devices
+2. Start HTTP/WebSocket server on port 8080 (default)
+3. Wait for connection requests from the web interface
 
 ### Web Interface
 
@@ -407,6 +431,40 @@ pytest tests/test_protocol.py -v
 - Production target platform
 - Test thoroughly on actual Pi hardware. Mostly tested on Pi 4B and 5B.
 - Consider using systemd service for headless deployment
+
+##### Running as a Systemd Service
+
+For production deployments on Raspberry Pi or other Linux systems, you can run PyFluff as a systemd service:
+
+1. Copy the service file:
+```bash
+sudo cp pyfluff.service /etc/systemd/system/
+```
+
+2. Edit the service file to match your installation:
+```bash
+sudo nano /etc/systemd/system/pyfluff.service
+# Update User, Group, and WorkingDirectory as needed
+```
+
+3. Enable and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable pyfluff
+sudo systemctl start pyfluff
+```
+
+4. Check status:
+```bash
+sudo systemctl status pyfluff
+```
+
+5. View logs:
+```bash
+sudo journalctl -u pyfluff -f
+```
+
+The service will automatically start on boot and restart on failures.
   
 ## Documentation
 
