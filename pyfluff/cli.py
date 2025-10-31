@@ -230,13 +230,10 @@ def monitor(duration: int = typer.Option(0, help="Duration in seconds (0 = infin
 
 @app.command()
 def upload_dlc(
-    file_path: Path,
+    file_path: Path = typer.Argument(..., exists=True, help="Path to DLC file"),
     slot: int = typer.Option(2, help="Slot number (default: 2)"),
 ) -> None:
     """Upload a DLC file to Furby."""
-    # Validate file_path argument
-    if not typer.Argument(..., help="Path to DLC file", exists=True):
-        pass  # Validation done by typer
 
     async def _upload() -> None:
         async with FurbyConnect() as furby:
