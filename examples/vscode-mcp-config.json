@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pyfluff": {
+      "command": "python",
+      "args": ["-m", "pyfluff.cli", "mcp-server"],
+      "env": {}
+    }
+  }
+}
