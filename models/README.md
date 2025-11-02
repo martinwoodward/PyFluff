@@ -40,7 +40,7 @@ You can 3D print a dummy battery using the provided STL file: [furby-dummy-batte
 
 4. **Connect the Wires**: Place the stripped red wire (5V) under the screw on the positive terminal side of the dummy battery and tighten the screw to secure it. Repeat this for the black wire (GND) on the negative terminal side.  The red wire goes to the side of the dummy battery with the "5VDC" symbol, and the black wire goes to the side with the "GND" symbol. ![Furby Dummy Battery](IMG_6733.jpg)
 
-5. **Insert the Dummy Battery**: Place the dummy battery into the Furby's battery compartment, ensuring that the screws make proper contact with the terminals inside the compartment.  The hole for the wires exits by the tail of the Furby. Note that the dummy battery model also contains additional holes should you want to mount with screws for a more permanent installation (1/4" and 3/8" holes provided for standard camera or lighting stands).
+5. **Insert the Dummy Battery**: Place the dummy battery into the Furby's battery compartment, ensuring that the screws make proper contact with the terminals inside the compartment.  The hole for the wires exits by the tail of the Furby. Note that the dummy battery model also contains additional holes should you want to mount with screws for a more permanent installation (1/4" and 3/8" holes provided for standard camera or lighting stands).  Screw the dummy battery into the holes either side of the battery compartment with M3 screws.
 
 6. **Connect to Power Supply**: Plug the USB end of the pigtail cable into a 5V DC power supply (such as a USB power adapter). Ensure that the power supply can provide at least 1A of current.
 
