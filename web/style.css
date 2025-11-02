@@ -145,7 +145,8 @@ body::before {
     backdrop-filter: blur(10px);
     font-size: 0.85rem;
     transition: all 0.2s;
-    min-width: 180px;
+    min-width: 140px;
+    max-width: 200px;
     cursor: pointer;
     color: var(--text-color);
 }
