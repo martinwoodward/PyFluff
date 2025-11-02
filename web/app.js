@@ -4,6 +4,120 @@ const API_BASE = window.location.origin;
 let ws = null;
 let isMonitoring = false;
 let logWs = null;
+const THEME_STORAGE_KEY = 'pyfluff-theme';
+
+function getStoredTheme() {
+    try {
+        return localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (error) {
+        console.warn('Theme storage unavailable', error);
+        return null;
+    }
+}
+
+function setStoredTheme(theme) {
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+        console.warn('Theme preference not saved', error);
+    }
+}
+
+function updateThemeToggleButton(isDark) {
+    const toggleBtn = document.getElementById('theme-toggle');
+    if (!toggleBtn) {
+        return;
+    }
+
+    toggleBtn.setAttribute('aria-pressed', String(isDark));
+    const message = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    toggleBtn.setAttribute('aria-label', message);
+    toggleBtn.setAttribute('title', message);
+
+    const icon = toggleBtn.querySelector('.theme-icon');
+    if (icon) {
+        icon.textContent = isDark ? '🌞' : '🌙';
+    }
+
+    const text = toggleBtn.querySelector('.theme-text');
+    if (text) {
+        text.textContent = isDark ? 'Light' : 'Dark';
+    }
+}
+
+function applyTheme(theme, persist = false) {
+    const isDark = theme === 'dark';
+
+    document.documentElement.classList.toggle('dark-mode', isDark);
+    if (document.body) {
+        document.body.classList.toggle('dark-mode', isDark);
+    }
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+
+    updateThemeToggleButton(isDark);
+
+    if (persist) {
+        setStoredTheme(theme);
+    }
+}
+
+function getPreferredTheme() {
+    const storedTheme = getStoredTheme();
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+        return storedTheme;
+    }
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+    }
+
+    return 'light';
+}
+
+function initThemeToggle() {
+    const toggleBtn = document.getElementById('theme-toggle');
+    const initialTheme = getPreferredTheme();
+    applyTheme(initialTheme);
+
+    if (!toggleBtn) {
+        return;
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.contains('dark-mode');
+        const nextTheme = isDark ? 'light' : 'dark';
+        applyTheme(nextTheme, true);
+    });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key !== THEME_STORAGE_KEY) {
+            return;
+        }
+
+        if (event.newValue === 'dark' || event.newValue === 'light') {
+            applyTheme(event.newValue);
+            return;
+        }
+
+        applyTheme(getPreferredTheme());
+    });
+
+    if (window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleChange = (event) => {
+            if (getStoredTheme()) {
+                return;
+            }
+            applyTheme(event.matches ? 'dark' : 'light');
+        };
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange);
+        } else if (typeof mediaQuery.addListener === 'function') {
+            mediaQuery.addListener(handleChange);
+        }
+    }
+}
 
 // Utility functions
 function log(message, type = 'info') {
@@ -474,6 +588,7 @@ document.getElementById('btn-activate-dlc').addEventListener('click', async () =
 */
 
 // Initialize
+initThemeToggle();
 updateStatus();
 loadKnownFurbies(); // Load known Furbies dropdown
 setInterval(updateStatus, 10000); // Update status every 10 seconds
