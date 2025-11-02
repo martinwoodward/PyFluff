@@ -3,11 +3,12 @@ Basic tests for PyFluff protocol module.
 """
 
 import pytest
+
 from pyfluff.protocol import (
-    FurbyProtocol,
-    MoodMeterType,
-    GeneralPlusCommand,
     FurbyMessage,
+    FurbyProtocol,
+    GeneralPlusCommand,
+    MoodMeterType,
 )
 
 
