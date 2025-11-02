@@ -142,8 +142,8 @@ function initNameHelper() {
     const setNameBtn = document.getElementById('btn-set-name');
     let isDropdownOpen = false;
     
-    // Set initial name value
-    const initialName = FURBY_NAMES.find(n => n.id === 47);
+    // Set initial name value to ID 0 (Ah-Bay)
+    const initialName = FURBY_NAMES.find(n => n.id === 0);
     if (initialName) {
         nameSearch.value = initialName.name;
     }
