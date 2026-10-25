@@ -460,7 +460,7 @@ async def upload_dlc(file: UploadFile, slot: int = 2) -> CommandResponse:
 
     try:
         dlc_manager = DLCManager(fb)
-        await dlc_manager.upload_dlc(tmp_path, slot)
+        await dlc_manager.upload_dlc(tmp_path, slot, filename=file.filename)
         return CommandResponse(
             success=True, message=f"DLC uploaded to slot {slot}"
         )

@@ -153,6 +153,9 @@ FURBY_NAME: Final[str] = "Furby"
 MAX_PACKET_SIZE: Final[int] = 20
 IDLE_INTERVAL: Final[float] = 3.0  # seconds
 FILE_CHUNK_SIZE: Final[int] = 20  # bytes per BLE packet
+FILE_PACKET_DELAY: Final[float] = 0.015  # seconds between packets; faster drops packets
+FILE_MAX_UNACKED: Final[int] = 10  # pause sending while Furby has more packets buffered than this
+FILE_MAX_PAUSE: Final[float] = 2.0  # seconds to pause before sending anyway
 
 
 class FurbyProtocol:
@@ -209,6 +212,21 @@ class FurbyProtocol:
         return bytes(
             [GeneralPlusCommand.SET_MOODMETER.value, action, mood_type.value, value]
         )
+
+    @staticmethod
+    def dlc_filename(name: str) -> str:
+        """
+        The 8.3 name Furby stores a DLC under, e.g. "pink.dlc" -> "____PINK.DLC".
+
+        Furby only keeps 8.3 names: sent a name without the .DLC extension, it accepts
+        the upload and then stores nothing. This keeps up to 8 letters and digits from
+        the file name, pads them with underscores as the stock DLCs are, and adds .DLC.
+        """
+        stem = name.replace("\\", "/").rsplit("/", 1)[-1]  # browsers on Windows may send a full path
+        if stem.lower().endswith(".dlc"):
+            stem = stem[:-4]
+        stem = "".join(c for c in stem if c.isascii() and c.isalnum())[:8].upper() or "CUSTOM"
+        return stem.rjust(8, "_") + ".DLC"
 
     @staticmethod
     def build_dlc_announce_command(
