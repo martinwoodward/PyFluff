@@ -96,21 +96,32 @@ def test_get_furby_message_type() -> None:
 
 def test_build_dlc_announce_command() -> None:
     """Test DLC announcement command generation."""
-    cmd = FurbyProtocol.build_dlc_announce_command(12345, 2, "TEST.DLC")
+    cmd = FurbyProtocol.build_dlc_announce_command(12345, 2, "____TEST.DLC")
 
-    # Check command ID
+    # Command ID, then a zero byte
     assert cmd[0] == GeneralPlusCommand.ANNOUNCE_DLC_UPLOAD.value
+    assert cmd[1] == 0x00
 
-    # Check size bytes (big-endian)
-    assert cmd[1] == 0x00  # (12345 >> 16) & 0xFF
-    assert cmd[2] == 0x30  # (12345 >> 8) & 0xFF
-    assert cmd[3] == 0x39  # 12345 & 0xFF
+    # Size bytes (big-endian)
+    assert cmd[2:5] == bytes([0x00, 0x30, 0x39])  # 12345
 
-    # Check slot
+    # Slot
     assert cmd[5] == 2
 
-    # Check filename (padded to 12 bytes)
-    assert cmd[6:18] == b"TEST.DLC\x00\x00\x00\x00"
+    # Filename, then two zero bytes
+    assert cmd[6:18] == b"____TEST.DLC"
+    assert cmd[18:] == b"\x00\x00"
+
+
+def test_dlc_filename() -> None:
+    """Furby stores 8.3 names padded with underscores, like the stock DLCs."""
+    assert FurbyProtocol.dlc_filename("pink.dlc") == "____PINK.DLC"
+    assert FurbyProtocol.dlc_filename("path/to/hacked.DLC") == "__HACKED.DLC"
+    assert FurbyProtocol.dlc_filename("spooky_pumpkin.dlc") == "SPOOKYPU.DLC"
+    assert FurbyProtocol.dlc_filename("my show 2.dlc") == "_MYSHOW2.DLC"
+    assert FurbyProtocol.dlc_filename("tmpk3j2a9x.dlc") == "TMPK3J2A.DLC"
+    assert FurbyProtocol.dlc_filename(".dlc") == "__CUSTOM.DLC"
+    assert FurbyProtocol.dlc_filename("C:\\Users\\me\\pink.dlc") == "____PINK.DLC"
 
 
 def test_build_nordic_packet_ack() -> None:

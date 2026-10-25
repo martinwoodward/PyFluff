@@ -10,7 +10,15 @@ import logging
 from pathlib import Path
 
 from pyfluff.furby import FurbyConnect
-from pyfluff.protocol import FILE_CHUNK_SIZE, FileTransferMode, FurbyProtocol
+from pyfluff.protocol import (
+    FILE_CHUNK_SIZE,
+    FILE_MAX_PAUSE,
+    FILE_MAX_UNACKED,
+    FILE_PACKET_DELAY,
+    FileTransferMode,
+    FurbyProtocol,
+    NordicCommand,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +37,8 @@ class DLCManager:
         self._transfer_ready = asyncio.Event()
         self._transfer_complete = asyncio.Event()
         self._transfer_error: str | None = None
+        self._unacked = 0
+        self._caught_up = asyncio.Event()
 
     def _file_transfer_callback(self, data: bytes) -> None:
         """Handle file transfer status notifications."""
@@ -46,15 +56,30 @@ class DLCManager:
             elif mode == FileTransferMode.FILE_RECEIVED_ERROR:
                 self._transfer_error = "File transfer failed"
                 self._transfer_complete.set()
+                self._caught_up.set()  # stop pausing; the upload is over
             elif mode == FileTransferMode.FILE_TRANSFER_TIMEOUT:
                 self._transfer_error = "File transfer timeout"
                 self._transfer_complete.set()
+                self._caught_up.set()  # stop pausing; the upload is over
 
         except ValueError:
             logger.warning(f"Unknown file transfer mode: {data[1]}")
 
+    def _nordic_callback(self, data: bytes) -> None:
+        """Track how many packets Furby has buffered, from its packet ACKs."""
+        if len(data) >= 2 and data[0] == NordicCommand.PACKET_ACK.value:
+            self._unacked = data[1]
+            if self._unacked <= FILE_MAX_UNACKED:
+                self._caught_up.set()
+
     async def upload_dlc(
-        self, dlc_path: Path, slot: int = 2, timeout: float = 60.0, enable_nordic_ack: bool = True
+        self,
+        dlc_path: Path,
+        slot: int = 2,
+        timeout: float = 60.0,
+        enable_nordic_ack: bool = True,
+        filename: str | None = None,
+        packet_delay: float = FILE_PACKET_DELAY,
     ) -> None:
         """
         Upload a DLC file to Furby.
@@ -62,8 +87,12 @@ class DLCManager:
         Args:
             dlc_path: Path to DLC file
             slot: Slot number to upload to (default: 2)
-            timeout: Upload timeout in seconds
-            enable_nordic_ack: Enable Nordic packet ACK for monitoring (default: True)
+            timeout: Seconds to wait for Furby to confirm the upload once it's all sent
+            enable_nordic_ack: Enable Nordic packet ACK, used to pace the upload (default: True)
+            filename: Name to store it under, if not dlc_path's (e.g. an uploaded file's
+                original name). Either way it's sent as an 8.3 name like ____PINK.DLC.
+            packet_delay: Seconds between 20-byte packets (default: 0.015). Raise it if
+                uploads time out.
 
         Raises:
             FileNotFoundError: If DLC file doesn't exist
@@ -75,25 +104,32 @@ class DLCManager:
         # Read DLC file
         dlc_data = dlc_path.read_bytes()
         file_size = len(dlc_data)
-        filename = dlc_path.name
+        name = filename or dlc_path.name
+        furby_filename = FurbyProtocol.dlc_filename(name)
+        if furby_filename.lstrip("_").lower() != name.replace("\\", "/").rsplit("/", 1)[-1].lower():
+            logger.warning(f"Furby keeps 8.3 names, so sending {name} as {furby_filename}")
 
-        logger.info(f"Uploading DLC: {filename} ({file_size} bytes) to slot {slot}")
-
-        # Enable Nordic Packet ACK for monitoring
-        if enable_nordic_ack:
-            await self.furby.enable_nordic_packet_ack(True)
+        logger.info(f"Uploading DLC: {furby_filename} ({file_size} bytes) to slot {slot}")
 
         # Reset transfer state
         self._transfer_ready.clear()
         self._transfer_complete.clear()
         self._transfer_error = None
+        self._unacked = 0
 
-        # Add transfer callback
+        # Add transfer callbacks
         self.furby.add_gp_callback(self._file_transfer_callback)
+        self.furby.add_nordic_callback(self._nordic_callback)
 
+        acks_on = False
         try:
+            # Enable Nordic Packet ACK, which reports how many packets Furby has buffered
+            if enable_nordic_ack:
+                await self.furby.enable_nordic_packet_ack(True)
+                acks_on = True
+
             # Announce DLC upload
-            cmd = FurbyProtocol.build_dlc_announce_command(file_size, slot, filename)
+            cmd = FurbyProtocol.build_dlc_announce_command(file_size, slot, furby_filename)
             await self.furby._write_gp(cmd)
 
             # Wait for ready signal
@@ -112,20 +148,34 @@ class DLCManager:
             chunk_count = 0
 
             while offset < file_size:
+                # Furby reported a timeout or receive error: stop sending
+                if self._transfer_complete.is_set():
+                    break
+
+                # Hold back while Furby is behind. It seems to ACK only while packets
+                # keep arriving, so carry on after a while regardless.
+                if self._unacked > FILE_MAX_UNACKED:
+                    self._caught_up.clear()
+                    try:
+                        await asyncio.wait_for(self._caught_up.wait(), FILE_MAX_PAUSE)
+                    except TimeoutError:
+                        self._unacked = 0
+
                 chunk = dlc_data[offset : offset + FILE_CHUNK_SIZE]
                 await self.furby._write_file(chunk)
                 offset += len(chunk)
                 chunk_count += 1
 
-                # Small delay to prevent overwhelming Furby
-                await asyncio.sleep(0.005)
+                # Writes don't wait for a response, so sending faster drops packets
+                await asyncio.sleep(packet_delay)
 
                 # Progress logging
                 if chunk_count % 100 == 0:
                     progress = (offset / file_size) * 100
                     logger.info(f"Upload progress: {progress:.1f}%")
 
-            logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
+            if not self._transfer_complete.is_set():
+                logger.info(f"Uploaded {chunk_count} chunks, waiting for confirmation...")
 
             # Wait for transfer complete
             try:
@@ -142,9 +192,16 @@ class DLCManager:
             logger.info("DLC upload complete!")
 
         finally:
-            # Remove callback
+            # Remove callbacks
             if self._file_transfer_callback in self.furby._gp_callbacks:
                 self.furby._gp_callbacks.remove(self._file_transfer_callback)
+            if self._nordic_callback in self.furby._nordic_callbacks:
+                self.furby._nordic_callbacks.remove(self._nordic_callback)
+            if acks_on:
+                try:
+                    await self.furby.enable_nordic_packet_ack(False)
+                except Exception as e:  # e.g. Furby disconnected; keep the original error
+                    logger.warning(f"Could not turn off Nordic packet ACK: {e}")
 
     async def load_dlc(self, slot: int) -> None:
         """
